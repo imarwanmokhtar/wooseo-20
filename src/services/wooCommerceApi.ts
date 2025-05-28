@@ -1,0 +1,470 @@
+
+import { WooCommerceCredentials, Brand, Category, Product, SeoContent } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+
+export async function saveWooCommerceCredentials(
+  userId: string, 
+  credentials: WooCommerceCredentials
+): Promise<void> {
+  const { error } = await supabase
+    .from('woocommerce_credentials')
+    .upsert({
+      user_id: userId,
+      store_name: credentials.store_name,
+      store_url: credentials.url,
+      consumer_key: credentials.consumer_key,
+      consumer_secret: credentials.consumer_secret,
+    });
+
+  if (error) throw error;
+}
+
+export async function getWooCommerceCredentials(userId: string, storeId?: string): Promise<WooCommerceCredentials | null> {
+  if (!storeId) {
+    console.error('No store ID provided for getWooCommerceCredentials');
+    return null;
+  }
+
+  console.log('Fetching credentials for store ID:', storeId, 'user:', userId);
+
+  const { data, error } = await supabase
+    .from('woocommerce_credentials')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('id', storeId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching credentials for store:', storeId, error);
+    return null;
+  }
+
+  if (!data) {
+    console.error('No credentials found for store:', storeId);
+    return null;
+  }
+
+  console.log('Successfully fetched credentials for store:', data.store_name);
+  
+  return {
+    id: data.id,
+    store_name: data.store_name,
+    url: data.store_url,
+    consumer_key: data.consumer_key,
+    consumer_secret: data.consumer_secret,
+    version: 'wc/v3',
+    user_id: data.user_id,
+    is_active: data.is_active,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+  } as WooCommerceCredentials;
+}
+
+export async function updateCredits(userId: string, creditsToAdd: number): Promise<boolean> {
+  try {
+    console.log(`Updating credits for user ${userId}: adding ${creditsToAdd} credits`);
+    
+    // First get current credits
+    const { data: currentUser, error: fetchError } = await supabase
+      .from('users')
+      .select('credits')
+      .eq('id', userId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching current credits:', fetchError);
+      return false;
+    }
+
+    const newCredits = (currentUser?.credits || 0) + creditsToAdd;
+    console.log(`Current credits: ${currentUser?.credits}, New total: ${newCredits}`);
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ credits: newCredits })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating credits:', updateError);
+      return false;
+    }
+
+    console.log('Credits updated successfully');
+    return true;
+  } catch (error) {
+    console.error('Error in updateCredits:', error);
+    return false;
+  }
+}
+
+export async function testConnection(credentials: WooCommerceCredentials): Promise<boolean> {
+  try {
+    console.log('Testing WooCommerce connection with:', {
+      url: credentials.url,
+      version: credentials.version,
+      hasConsumerKey: !!credentials.consumer_key,
+      hasConsumerSecret: !!credentials.consumer_secret
+    });
+
+    // Try multiple endpoints to test connection
+    const endpoints = [
+      `${credentials.url}/wp-json/${credentials.version}/products?per_page=1`,
+      `${credentials.url}/wp-json/${credentials.version}/products/categories?per_page=1`,
+      `${credentials.url}/wp-json/wc/v3/products?per_page=1` // Fallback to wc/v3
+    ];
+
+    const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
+
+    for (const url of endpoints) {
+      try {
+        console.log('Testing endpoint:', url);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Basic ${auth}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Connection successful with endpoint:', url);
+          console.log('Sample data:', data);
+          return true;
+        } else {
+          const errorText = await response.text();
+          console.log('Response error:', response.status, errorText);
+        }
+      } catch (endpointError) {
+        console.log('Endpoint error:', endpointError);
+        continue; // Try next endpoint
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error testing WooCommerce connection:', error);
+    return false;
+  }
+}
+
+export async function fetchBrands(credentials: WooCommerceCredentials): Promise<Brand[]> {
+  try {
+    const url = `${credentials.url}/wp-json/${credentials.version}/products/attributes/1/terms?per_page=100`;
+    const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch brands');
+    const data = await response.json();
+    return data as Brand[];
+  } catch (error) {
+    console.error('Error fetching brands:', error);
+    return [];
+  }
+}
+
+export async function fetchCategories(credentials: WooCommerceCredentials): Promise<Category[]> {
+  try {
+    const url = `${credentials.url}/wp-json/${credentials.version}/products/categories?per_page=100`;
+    const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch categories');
+    const data = await response.json();
+    return data as Category[];
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return [];
+  }
+}
+
+export async function fetchProducts(
+  credentials: WooCommerceCredentials,
+  params: {
+    category?: number;
+    brand?: number;
+    search?: string;
+    page?: number;
+    per_page?: number;
+    include?: number[];
+  }
+): Promise<{ products: Product[]; total: number; totalPages: number }> {
+  try {
+    let url = `${credentials.url}/wp-json/${credentials.version}/products?`;
+    
+    if (params.category) url += `&category=${params.category}`;
+    if (params.brand) url += `&attribute=1&attribute_term=${params.brand}`;
+    if (params.search) url += `&search=${encodeURIComponent(params.search)}`;
+    if (params.include && params.include.length > 0) {
+      url += `&include=${params.include.join(',')}`;
+    }
+    
+    url += `&page=${params.page || 1}&per_page=${params.per_page || 10}`;
+    
+    const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch products');
+    
+    const products = await response.json();
+    const total = parseInt(response.headers.get('X-WP-Total') || '0', 10);
+    const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '0', 10);
+
+    return {
+      products,
+      total,
+      totalPages,
+    };
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return {
+      products: [],
+      total: 0,
+      totalPages: 0,
+    };
+  }
+}
+
+export async function updateProductSeo(
+  credentials: WooCommerceCredentials,
+  productId: number,
+  data: {
+    short_description?: string;
+    description?: string;
+    meta_data?: Array<{ key: string; value: string }>;
+    images?: Array<{ id?: number; src?: string; alt?: string }>;
+  }
+): Promise<boolean> {
+  try {
+    const url = `${credentials.url}/wp-json/${credentials.version}/products/${productId}`;
+    const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
+
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.error('Error updating product SEO:', error);
+    return false;
+  }
+}
+
+export async function updateProductWithSeoContent(
+  credentials: WooCommerceCredentials,
+  productId: number,
+  seoContent: SeoContent
+): Promise<boolean> {
+  try {
+    console.log('Updating WooCommerce product with comprehensive SEO content:', productId);
+    console.log('Focus keywords to update:', seoContent.focus_keywords);
+
+    // Extract the first focus keyword for RankMath (it typically uses the primary one)
+    const focusKeywords = seoContent.focus_keywords || '';
+    const primaryFocusKeyword = focusKeywords.split(',')[0]?.trim() || '';
+    
+    console.log('Primary focus keyword for RankMath:', primaryFocusKeyword);
+
+    // Prepare comprehensive meta data for RankMath SEO and other plugins
+    const metaData = [
+      // RankMath SEO fields - use the actual focus keywords instead of placeholder
+      { key: 'rank_math_title', value: seoContent.meta_title },
+      { key: 'rank_math_description', value: seoContent.meta_description },
+      { key: 'rank_math_focus_keyword', value: primaryFocusKeyword },
+      // Store all focus keywords as well
+      { key: 'rank_math_focus_keywords', value: focusKeywords },
+      // Yoast SEO compatibility
+      { key: '_yoast_wpseo_title', value: seoContent.meta_title },
+      { key: '_yoast_wpseo_metadesc', value: seoContent.meta_description },
+      { key: '_yoast_wpseo_focuskw', value: primaryFocusKeyword },
+      // Image alt text and caption
+      { key: '_wp_attachment_image_alt', value: seoContent.alt_text || seoContent.meta_title },
+      { key: 'product_image_caption', value: seoContent.alt_text || seoContent.meta_title },
+      // Additional SEO meta fields
+      { key: 'seo_focus_keywords', value: focusKeywords },
+      { key: 'ai_generated_keywords', value: focusKeywords },
+    ];
+
+    const updateData = {
+      short_description: seoContent.short_description,
+      description: seoContent.long_description,
+      meta_data: metaData
+    };
+
+    console.log('Sending update data to WooCommerce:', updateData);
+
+    const success = await updateProductSeo(credentials, productId, updateData);
+    
+    if (success) {
+      console.log('Product updated successfully in WooCommerce with focus keywords:', focusKeywords);
+      
+      // Also update product images with alt text if they exist
+      await updateProductImages(credentials, productId, seoContent.alt_text || seoContent.meta_title);
+    } else {
+      console.error('Failed to update product in WooCommerce');
+    }
+
+    return success;
+  } catch (error) {
+    console.error('Error updating product with SEO content:', error);
+    return false;
+  }
+}
+
+export async function updateProductImages(
+  credentials: WooCommerceCredentials,
+  productId: number,
+  altText: string
+): Promise<boolean> {
+  try {
+    console.log('Updating product images with alt text:', productId);
+    
+    // First, get the current product to see existing images
+    const productUrl = `${credentials.url}/wp-json/${credentials.version}/products/${productId}`;
+    const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
+
+    const getResponse = await fetch(productUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!getResponse.ok) {
+      console.error('Failed to fetch product for image update');
+      return false;
+    }
+
+    const product = await getResponse.json();
+    
+    if (product.images && product.images.length > 0) {
+      // Update images with alt text
+      const updatedImages = product.images.map((image: any) => ({
+        id: image.id,
+        src: image.src,
+        alt: altText,
+        name: image.name || altText,
+      }));
+
+      const updateResponse = await fetch(productUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          images: updatedImages
+        }),
+      });
+
+      if (updateResponse.ok) {
+        console.log('Product images updated with alt text successfully');
+        return true;
+      }
+    }
+
+    return true; // Return true even if no images to update
+  } catch (error) {
+    console.error('Error updating product images:', error);
+    return true; // Don't fail the whole process if image update fails
+  }
+}
+
+export async function saveSeoContent(
+  userId: string,
+  content: SeoContent
+): Promise<SeoContent> {
+  const { data, error } = await supabase
+    .from('generated_content')
+    .insert({
+      user_id: userId,
+      product_id: content.product_id.toString(), // Convert to string for database
+      product_name: content.product_name || '',
+      short_description: content.short_description,
+      long_description: content.long_description,
+      meta_title: content.meta_title,
+      meta_description: content.meta_description,
+      alt_text: content.alt_text,
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  
+  // Convert back to expected format - fix the id type conversion
+  return {
+    id: parseInt(data.id), // Convert string id to number
+    product_id: parseInt(data.product_id),
+    product_name: data.product_name,
+    short_description: data.short_description || '',
+    long_description: data.long_description || '',
+    meta_title: data.meta_title || '',
+    meta_description: data.meta_description || '',
+    alt_text: data.alt_text || '',
+    created_at: data.created_at,
+    user_id: data.user_id,
+  } as SeoContent;
+}
+
+export async function getSavedSeoContent(
+  userId: string,
+  productId: number
+): Promise<SeoContent | null> {
+  const { data, error } = await supabase
+    .from('generated_content')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('product_id', productId.toString()) // Convert to string for database query
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle(); // Use maybeSingle to avoid errors when no data found
+
+  if (error || !data) return null;
+  
+  // Convert back to expected format - fix the id type conversion
+  return {
+    id: parseInt(data.id), // Convert string id to number
+    product_id: parseInt(data.product_id),
+    product_name: data.product_name,
+    short_description: data.short_description || '',
+    long_description: data.long_description || '',
+    meta_title: data.meta_title || '',
+    meta_description: data.meta_description || '',
+    alt_text: data.alt_text || '',
+    created_at: data.created_at,
+    user_id: data.user_id,
+  } as SeoContent;
+}
