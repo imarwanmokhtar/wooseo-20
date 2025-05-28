@@ -327,7 +327,6 @@ const Index = () => {
             </div>
             <div className="flex gap-8 text-center md:text-left">
               <Link to="/" className="hover:text-seo-accent transition-colors font-medium">Home</Link>
-              <Link to="/about" className="hover:text-seo-accent transition-colors font-medium">About</Link>
               <Link to="/register" className="hover:text-seo-accent transition-colors font-medium">Sign Up</Link>
               <Link to="/login" className="hover:text-seo-accent transition-colors font-medium">Login</Link>
             </div>
