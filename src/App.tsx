@@ -17,7 +17,7 @@ import ContentGeneration from "./pages/ContentGeneration";
 import Settings from "./pages/Settings";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import NotFound from "./pages/NotFound";
-
+import { Analytics } from "@vercel/analytics/react"
 import { initGA } from "./ga";
 
 // Create the React-Query client once (outside the component)
