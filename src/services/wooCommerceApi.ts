@@ -1,4 +1,3 @@
-
 import { WooCommerceCredentials, Brand, Category, Product, SeoContent } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -407,64 +406,24 @@ export async function saveSeoContent(
   userId: string,
   content: SeoContent
 ): Promise<SeoContent> {
-  const { data, error } = await supabase
-    .from('generated_content')
-    .insert({
-      user_id: userId,
-      product_id: content.product_id.toString(), // Convert to string for database
-      product_name: content.product_name || '',
-      short_description: content.short_description,
-      long_description: content.long_description,
-      meta_title: content.meta_title,
-      meta_description: content.meta_description,
-      alt_text: content.alt_text,
-    })
-    .select('*')
-    .single();
-
-  if (error) throw error;
+  // Since we removed the generated_content table, we'll just return the content as-is
+  // This maintains the function interface but doesn't persist to database
+  console.log('saveSeoContent called but not persisting to database (generated_content table removed)');
   
-  // Convert back to expected format - fix the id type conversion
   return {
-    id: parseInt(data.id), // Convert string id to number
-    product_id: parseInt(data.product_id),
-    product_name: data.product_name,
-    short_description: data.short_description || '',
-    long_description: data.long_description || '',
-    meta_title: data.meta_title || '',
-    meta_description: data.meta_description || '',
-    alt_text: data.alt_text || '',
-    created_at: data.created_at,
-    user_id: data.user_id,
-  } as SeoContent;
+    ...content,
+    id: Date.now(), // Generate a temporary ID for consistency
+    created_at: new Date().toISOString(),
+    user_id: userId,
+  };
 }
 
 export async function getSavedSeoContent(
   userId: string,
   productId: number
 ): Promise<SeoContent | null> {
-  const { data, error } = await supabase
-    .from('generated_content')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('product_id', productId.toString()) // Convert to string for database query
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle(); // Use maybeSingle to avoid errors when no data found
-
-  if (error || !data) return null;
-  
-  // Convert back to expected format - fix the id type conversion
-  return {
-    id: parseInt(data.id), // Convert string id to number
-    product_id: parseInt(data.product_id),
-    product_name: data.product_name,
-    short_description: data.short_description || '',
-    long_description: data.long_description || '',
-    meta_title: data.meta_title || '',
-    meta_description: data.meta_description || '',
-    alt_text: data.alt_text || '',
-    created_at: data.created_at,
-    user_id: data.user_id,
-  } as SeoContent;
+  // Since we removed the generated_content table, we'll return null
+  // This maintains the function interface but doesn't fetch from database
+  console.log('getSavedSeoContent called but returning null (generated_content table removed)');
+  return null;
 }

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
@@ -12,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Wand2, Save, Loader2, AlertCircle } from 'lucide-react';
 import EditableSeoContent from './EditableSeoContent';
+import ModelSelector, { AIModel, modelConfig } from './ModelSelector';
 
 interface SeoContentGeneratorProps {
   products: Product[];
@@ -24,12 +24,16 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
 }) => {
   const { user, credits, refreshCredits } = useAuth();
   const { activeStore } = useMultiStore();
+  const [selectedModel, setSelectedModel] = useState<AIModel>('gemini-2.0-flash');
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT_TEMPLATE);
   const [generating, setGenerating] = useState(false);
   const [updatingWooCommerce, setUpdatingWooCommerce] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<{ [productId: number]: SeoContent }>({});
   const [error, setError] = useState<string | null>(null);
   const [updatedProducts, setUpdatedProducts] = useState<Set<number>>(new Set());
+
+  const totalCreditsRequired = products.length * modelConfig[selectedModel].credits;
+  const canAffordGeneration = credits >= totalCreditsRequired;
 
   const handleGenerateContent = async () => {
     setError(null);
@@ -51,8 +55,8 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
       return;
     }
 
-    if (credits <= 0) {
-      setError('You do not have enough credits to generate content. Please purchase credits first.');
+    if (!canAffordGeneration) {
+      setError(`You need ${totalCreditsRequired} credits to generate content for ${products.length} product(s) with ${modelConfig[selectedModel].name}. You have ${credits} credits.`);
       toast.error('Not enough credits');
       return;
     }
@@ -63,11 +67,11 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
 
     try {
       for (const product of products) {
-        console.log(`Generating content for product: ${product.name}`);
-        toast.info(`Generating content for ${product.name}...`);
+        console.log(`Generating content for product: ${product.name} using ${selectedModel}`);
+        toast.info(`Generating content for ${product.name} with ${modelConfig[selectedModel].name}...`);
 
         try {
-          const content = await generateSeoContent(product, prompt, user.id);
+          const content = await generateSeoContent(product, prompt, user.id, selectedModel);
           // Add store_id to the content
           content.store_id = activeStore.id;
           newContent[product.id] = content;
@@ -85,7 +89,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
 
       if (successCount > 0) {
         setGeneratedContent(prev => ({ ...prev, ...newContent }));
-        toast.success(`Generated SEO content for ${successCount} product(s)`);
+        toast.success(`Generated SEO content for ${successCount} product(s) using ${modelConfig[selectedModel].name}`);
         // Refresh credits to show updated value
         await refreshCredits();
       } else {
@@ -214,16 +218,24 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
             </Alert>
           )}
           
-          <div className="space-y-4">
-            <div className="flex justify-between items-center mb-2">
+          <div className="space-y-6">
+            <ModelSelector
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+              userCredits={credits}
+            />
+            
+            <div className="flex justify-between items-center">
               <div className="text-sm">
                 Available credits: <span className="font-medium">{credits}</span>
               </div>
               <div className="text-sm text-gray-500">
-                {credits <= 0 ? (
-                  <span className="text-red-500">Please purchase credits to continue</span>
+                {canAffordGeneration ? (
+                  `Total cost: ${totalCreditsRequired} credit${totalCreditsRequired !== 1 ? 's' : ''} (${modelConfig[selectedModel].credits} per product)`
                 ) : (
-                  `Each product uses 1 credit`
+                  <span className="text-red-500">
+                    Need {totalCreditsRequired} credits (you have {credits})
+                  </span>
                 )}
               </div>
             </div>
@@ -245,7 +257,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
               <div className="space-x-2">
                 <Button 
                   onClick={handleGenerateContent} 
-                  disabled={generating || products.length === 0 || credits <= 0 || !activeStore}
+                  disabled={generating || products.length === 0 || !canAffordGeneration || !activeStore}
                   className="min-w-[140px]"
                 >
                   {generating ? (

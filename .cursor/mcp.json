@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "url": "https://gsuhpsjprxgtswwcpixk.supabase.co",
+      "key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdWhwc2pwcnhndHN3d2NwaXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MTYxODAsImV4cCI6MjA2MzQ5MjE4MH0.DdCk4RmC8jnmz-HaoMLvAU3LOIo9kKvazHo7hQrCT00"
+    }
+  }
+} 

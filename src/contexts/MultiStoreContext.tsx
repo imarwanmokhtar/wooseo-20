@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { WooCommerceCredentials, StoreUsage } from '@/types';
 import { useAuth } from './AuthContext';
@@ -99,28 +98,13 @@ export const MultiStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!user?.id || stores.length === 0) return;
 
     try {
-      const { data, error } = await supabase
-        .from('generated_content')
-        .select('store_id')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error fetching usage:', error);
-        return;
-      }
-
-      // Group by store and count usage
-      const usageMap = new Map<string, number>();
-      (data || []).forEach(item => {
-        const storeId = item.store_id || 'default';
-        usageMap.set(storeId, (usageMap.get(storeId) || 0) + 1);
-      });
-
+      // Since we removed the generated_content table, we'll initialize empty usage
+      // In the future, usage tracking could be implemented differently if needed
       const usage = stores.map(store => ({
         store_id: store.id || 'default',
         store_name: store.store_name,
-        credits_used: usageMap.get(store.id || 'default') || 0,
-        products_generated: usageMap.get(store.id || 'default') || 0,
+        credits_used: 0,
+        products_generated: 0,
       }));
 
       setStoreUsage(usage);

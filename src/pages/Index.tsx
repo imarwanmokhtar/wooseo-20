@@ -55,7 +55,10 @@ const Index = () => {
                 size="lg" 
                 className="border-2 border-white/30 text-gray-900 bg-white hover:bg-gray-50 py-6 px-8 text-lg rounded-2xl backdrop-blur-sm transition-all duration-200 hover:scale-105"
               >
-                <Link to="#how-it-works">Learn More</Link>
+                <Link to="#how-it-works" onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+                }}>Learn More</Link>
               </Button>
             </div>
             
@@ -89,7 +92,7 @@ const Index = () => {
             <h2 className="text-4xl md:text-5xl font-display font-bold mb-6 bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
               Powerful SEO Tools for E-commerce
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p id="how-it-works" className="text-xl text-gray-600 max-w-3xl mx-auto">
               Everything you need to dominate search results and drive organic traffic
             </p>
           </div>
@@ -190,6 +193,75 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Why Choose Us Section */}
+      <section className="py-24 bg-white relative">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-20 animate-fade-in-up">
+            <h2 className="text-4xl md:text-5xl font-display font-bold mb-6 bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
+              Why Choose Us
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Experience the difference with our AI-powered SEO solution
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {[
+              {
+                icon: <Sparkles className="h-8 w-8" />,
+                title: "AI-Powered Excellence",
+                description: "Our advanced AI understands your brand voice and creates content that resonates with your audience while maintaining SEO best practices.",
+                gradient: "from-seo-primary to-seo-secondary"
+              },
+              {
+                icon: <Clock className="h-8 w-8" />,
+                title: "Time-Saving Automation",
+                description: "Generate optimized content in seconds instead of hours. Focus on growing your business while we handle the SEO heavy lifting.",
+                gradient: "from-seo-accent to-seo-primary"
+              },
+              {
+                icon: <TrendingUp className="h-8 w-8" />,
+                title: "Proven Results",
+                description: "Join thousands of stores that have seen significant traffic increases and improved search rankings with our solution.",
+                gradient: "from-seo-secondary to-seo-accent"
+              },
+              {
+                icon: <Shield className="h-8 w-8" />,
+                title: "Secure & Reliable",
+                description: "Your data is protected with enterprise-grade security. We maintain strict privacy standards and secure API connections.",
+                gradient: "from-seo-primary to-seo-secondary"
+              },
+              {
+                icon: <Zap className="h-8 w-8" />,
+                title: "Instant Integration",
+                description: "Connect your WooCommerce store in minutes. No technical expertise required - we handle all the complex setup.",
+                gradient: "from-seo-accent to-seo-primary"
+              },
+              {
+                icon: <CheckCircle className="h-8 w-8" />,
+                title: "Quality Guaranteed",
+                description: "Every piece of content is optimized for RankMath with guaranteed 90+ SEO scores. Your success is our priority.",
+                gradient: "from-seo-secondary to-seo-accent"
+              }
+            ].map((feature, index) => (
+              <div 
+                key={index}
+                className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 animate-fade-in-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className={`bg-gradient-to-r ${feature.gradient} p-4 rounded-2xl w-16 h-16 flex items-center justify-center text-white mb-6 shadow-lg`}>
+                  {feature.icon}
+                </div>
+                <h3 className="text-2xl font-display font-semibold mb-4 text-gray-900">{feature.title}</h3>
+                <p className="text-gray-600 text-lg leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials */}
       <Testimonials />
 
@@ -219,6 +291,7 @@ const Index = () => {
                   "• Image Alt Text",
                   "• Focus keywords",
                   "Custom Prompt Editing",
+                  "Multi-store Support",
                   "WooCommerce Store Integration",
                   "Real-time Preview Before Applying",
                   "Basic Support (Email)"
@@ -234,6 +307,7 @@ const Index = () => {
                 description: "For growing stores with more products to optimize.",
                 features: [
                   "Everything in Starter, plus:",
+                  "Multi-store Support",
                   "Priority Support (Live Chat)",
                   "Bulk Generation Tools",
                   "Early Access to New Features"
@@ -250,7 +324,6 @@ const Index = () => {
                 features: [
                   "Everything in Growth, plus:",
                   "Multi-store Support",
-                  "Free Monthly Bonus Credits (+5%)",
                   "Priority Support (Live Chat)"
                 ],
                 popular: false,
@@ -280,7 +353,7 @@ const Index = () => {
                     <Clock className="h-4 w-4 mr-2 text-seo-primary" />
                     <span className="font-semibold text-seo-primary">
                       {plan.credits} credits
-                      {plan.name === "Scale" && <span className="text-seo-accent ml-1">(+5% bonus)</span>}
+                      {plan.name === "Scale" && <span className="text-seo-accent ml-1"></span>}
                     </span>
                   </div>
                 </div>

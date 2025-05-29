@@ -1,6 +1,8 @@
 
 import { Product, SeoContent } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
+import { modelConfig } from '@/components/ModelSelector';
+import type { AIModel } from '@/components/ModelSelector';
 
 export const DEFAULT_PROMPT_TEMPLATE = 
 `You are an expert eCommerce SEO product description writer specializing in optimizing product content for RankMath SEO plugin. Your task is to write detailed and SEO-optimized product descriptions that achieve high RankMath scores.
@@ -119,96 +121,13 @@ export async function getPromptTemplates(userId: string) {
   return data;
 }
 
-async function callGeminiAPI(prompt: string): Promise<any> {
-  const GEMINI_API_KEY = 'AIzaSyBzV_v93D5yfZP-VnT2TWH0Pf1EATMRDbk';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt
-            }
-          ]
-        }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data;
-}
-
-function parseGeminiResponse(response: any): SeoContent {
-  try {
-    const text = response.candidates[0].content.parts[0].text;
-    console.log('Parsing Gemini response:', text);
-    
-    // Parse the response text to extract sections
-    const longDescMatch = text.match(/LONG DESCRIPTION:\s*([\s\S]*?)(?=SHORT DESCRIPTION:|$)/);
-    const shortDescMatch = text.match(/SHORT DESCRIPTION:\s*([\s\S]*?)(?=META TITLE:|$)/);
-    const metaTitleMatch = text.match(/META TITLE:\s*([\s\S]*?)(?=META DESCRIPTION:|$)/);
-    const metaDescMatch = text.match(/META DESCRIPTION:\s*([\s\S]*?)(?=FOCUS KEYWORDS:|$)/);
-    const focusKeywordsMatch = text.match(/FOCUS KEYWORDS:\s*([\s\S]*?)(?=IMAGE ALT TEXT:|PERMALINK:|$)/);
-    const altTextMatch = text.match(/IMAGE ALT TEXT:\s*([\s\S]*?)(?=PERMALINK:|$)/);
-    
-    // Extract focus keywords and ensure we have exactly 3
-    let focusKeywords = '';
-    if (focusKeywordsMatch) {
-      const keywords = focusKeywordsMatch[1].trim();
-      console.log('Extracted focus keywords from AI:', keywords);
-      
-      // Split by comma and clean up
-      const keywordArray = keywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
-      
-      // Ensure we have exactly 3 keywords
-      if (keywordArray.length >= 3) {
-        focusKeywords = keywordArray.slice(0, 3).join(', ');
-      } else if (keywordArray.length > 0) {
-        // If less than 3, use what we have but log a warning
-        focusKeywords = keywords;
-        console.warn('Expected 3 focus keywords but got:', keywordArray.length);
-      }
-    }
-    
-    // Extract alt text
-    const altText = altTextMatch ? altTextMatch[1].trim() : '';
-    
-    console.log('Final parsed focus keywords (exactly 3):', focusKeywords);
-    console.log('Final parsed alt text:', altText);
-    
-    return {
-      short_description: shortDescMatch ? shortDescMatch[1].trim() : '',
-      long_description: longDescMatch ? longDescMatch[1].trim() : '',
-      meta_title: metaTitleMatch ? metaTitleMatch[1].trim() : '',
-      meta_description: metaDescMatch ? metaDescMatch[1].trim() : '',
-      alt_text: altText,
-      focus_keywords: focusKeywords,
-      product_id: 0,
-      user_id: '',
-    };
-  } catch (error) {
-    console.error('Error parsing Gemini response:', error);
-    throw new Error('Failed to parse AI response. Please try again.');
-  }
-}
-
 export async function generateSeoContent(
   product: Product,
   prompt: string,
-  userId: string
+  userId: string,
+  model: AIModel = 'gemini-2.0-flash'
 ): Promise<SeoContent> {
-  console.log('Starting SEO content generation for product:', product.name);
+  console.log('Starting SEO content generation for product:', product.name, 'with model:', model);
 
   // Get store URL from the user's WooCommerce credentials
   const { data: storeData, error: storeError } = await supabase
@@ -244,28 +163,42 @@ export async function generateSeoContent(
       throw new Error('Failed to verify user credits. Please try again.');
     }
     
-    if (!userData || userData.credits < 1) {
-      throw new Error('Not enough credits to generate content. Please purchase additional credits.');
+    const requiredCredits = modelConfig[model].credits;
+    
+    if (!userData || userData.credits < requiredCredits) {
+      throw new Error(`Not enough credits to generate content. This model requires ${requiredCredits} credits.`);
     }
 
-    console.log('User has enough credits. Calling Gemini API...');
+    console.log('User has enough credits. Calling AI API...');
     
-    // Call Gemini API
-    const geminiResponse = await callGeminiAPI(formattedPrompt);
-    console.log('Gemini API response received');
+    // Call the edge function to generate content
+    const { data, error } = await supabase.functions.invoke('generate-content', {
+      body: {
+        product,
+        prompt: formattedPrompt,
+        model,
+        userId
+      }
+    });
 
-    // Parse the response
-    const seoContent = parseGeminiResponse(geminiResponse);
+    if (error) {
+      console.error('Error from generate-content function:', error);
+      throw new Error('Failed to generate content. Please try again.');
+    }
+
+    console.log('AI API response received');
+
+    const seoContent = data;
     seoContent.product_id = product.id;
     seoContent.product_name = product.name;
     seoContent.user_id = userId;
 
     console.log('Parsed SEO content successfully:', seoContent);
 
-    // Deduct a credit from the user's account
+    // Deduct credits from the user's account
     const { error: updateError } = await supabase
       .from('users')
-      .update({ credits: userData.credits - 1 })
+      .update({ credits: userData.credits - requiredCredits })
       .eq('id', userId);
 
     if (updateError) {
@@ -273,43 +206,9 @@ export async function generateSeoContent(
       throw new Error('Failed to update credits. The content was generated but your credits were not deducted.');
     }
 
-    // Save the generated content to the database INCLUDING focus_keywords
-    const { data: savedContent, error: saveError } = await supabase
-      .from('generated_content')
-      .insert({
-        user_id: userId,
-        product_id: product.id.toString(),
-        product_name: product.name,
-        short_description: seoContent.short_description,
-        long_description: seoContent.long_description,
-        meta_title: seoContent.meta_title,
-        meta_description: seoContent.meta_description,
-        alt_text: seoContent.alt_text || '',
-        focus_keywords: seoContent.focus_keywords || '',
-      })
-      .select('*')
-      .single();
+    console.log(`SEO content generated successfully and ${requiredCredits} credits deducted`);
 
-    if (saveError) {
-      console.error('Error saving SEO content to database:', saveError);
-      throw new Error('Failed to save generated content to database.');
-    }
-
-    console.log('SEO content saved to database with focus keywords:', savedContent.focus_keywords);
-
-    return {
-      id: parseInt(savedContent.id),
-      product_id: parseInt(savedContent.product_id),
-      product_name: savedContent.product_name,
-      short_description: savedContent.short_description || '',
-      long_description: savedContent.long_description || '',
-      meta_title: savedContent.meta_title || '',
-      meta_description: savedContent.meta_description || '',
-      alt_text: savedContent.alt_text || '',
-      focus_keywords: savedContent.focus_keywords || '',
-      created_at: savedContent.created_at,
-      user_id: savedContent.user_id,
-    };
+    return seoContent;
   } catch (error) {
     console.error('Error generating SEO content:', error);
     throw error instanceof Error ? error : new Error('Unknown error generating content');
@@ -317,13 +216,7 @@ export async function generateSeoContent(
 }
 
 export async function getSeoHistoryForProduct(userId: string, productId: number) {
-  const { data, error } = await supabase
-    .from('generated_content')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('product_id', productId.toString())
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data;
+  // This function is no longer functional since we removed the generated_content table
+  console.warn('getSeoHistoryForProduct is no longer available - generated_content table was removed');
+  return [];
 }

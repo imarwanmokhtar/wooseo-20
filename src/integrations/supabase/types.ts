@@ -9,51 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      generated_content: {
-        Row: {
-          alt_text: string | null
-          created_at: string
-          focus_keywords: string | null
-          id: string
-          long_description: string | null
-          meta_description: string | null
-          meta_title: string | null
-          product_id: string
-          product_name: string
-          short_description: string | null
-          store_id: string | null
-          user_id: string
-        }
-        Insert: {
-          alt_text?: string | null
-          created_at?: string
-          focus_keywords?: string | null
-          id?: string
-          long_description?: string | null
-          meta_description?: string | null
-          meta_title?: string | null
-          product_id: string
-          product_name: string
-          short_description?: string | null
-          store_id?: string | null
-          user_id: string
-        }
-        Update: {
-          alt_text?: string | null
-          created_at?: string
-          focus_keywords?: string | null
-          id?: string
-          long_description?: string | null
-          meta_description?: string | null
-          meta_title?: string | null
-          product_id?: string
-          product_name?: string
-          short_description?: string | null
-          store_id?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       prompt_templates: {
         Row: {
           created_at: string
