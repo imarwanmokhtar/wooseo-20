@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import SeoContentGenerator from '@/components/SeoContentGenerator';
 
+
+
 const ContentGeneration = () => {
   const { user, session, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();

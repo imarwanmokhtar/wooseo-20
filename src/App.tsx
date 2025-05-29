@@ -15,7 +15,13 @@ import ContentGeneration from "./pages/ContentGeneration";
 import Settings from "./pages/Settings";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import NotFound from "./pages/NotFound";
+import { initGA } from './ga';
+import React, { useEffect } from 'react'; 
 
+function App() {
+  useEffect(() => {
+    initGA();
+  }, []);
 const queryClient = new QueryClient();
 
 const App = () => (
