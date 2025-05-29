@@ -99,37 +99,6 @@ export type Database = {
         }
         Relationships: []
       }
-      limited_offer_purchases: {
-        Row: {
-          id: string
-          user_id: string
-          created_at: string
-          updated_at: string
-          session_id: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          created_at?: string
-          updated_at?: string
-          session_id: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          created_at?: string
-          updated_at?: string
-          session_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "limited_offer_purchases_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
     }
     Views: {
       [_ in never]: never

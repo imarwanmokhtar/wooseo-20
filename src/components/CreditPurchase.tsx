@@ -13,20 +13,18 @@ interface CreditPurchaseProps {
 
 const CreditPurchase: React.FC<CreditPurchaseProps> = ({ onPurchaseComplete }) => {
   const [isProcessing, setIsProcessing] = useState<{ [key: string]: boolean }>({
-    '100': false,
+    '50': false,
     '500': false,
     '1000': false,
   });
   const { user } = useAuth();
 
-  const handlePurchase = async (creditPackage: '100' | '500' | '1000') => {
+  const handlePurchase = async (creditPackage: '50' | '500' | '1000') => {
     if (!user) {
       toast.error('Please log in to purchase credits');
       return;
     }
-
     setIsProcessing(prev => ({ ...prev, [creditPackage]: true }));
-    
     try {
       const checkoutUrl = await createSubscription(creditPackage);
       window.location.href = checkoutUrl;
@@ -37,88 +35,104 @@ const CreditPurchase: React.FC<CreditPurchaseProps> = ({ onPurchaseComplete }) =
     }
   };
 
+  const plans = [
+    {
+      name: "Starter",
+      price: "$5",
+      credits: "50",
+      description: "Perfect for small stores getting started with SEO.",
+      features: [
+        "AI Content Generation",
+        "Long & Short Descriptions",
+        "Meta Title & Meta Description",
+        "Image Alt Text",
+        "Focus keywords",
+        "Custom Prompt Editing",
+        "Multi-store Support",
+        "WooCommerce Store Integration",
+        "Real-time Preview Before Applying",
+        "Basic Support (Email)"
+      ],
+      popular: false,
+      gradient: "from-seo-primary/10 to-seo-secondary/10",
+      border: "border-seo-primary/20"
+    },
+    {
+      name: "Growth",
+      price: "$20",
+      credits: "500",
+      description: "For growing stores with more products to optimize.",
+      features: [
+        "Everything in Starter, plus:",
+        "Multi-store Support",
+        "Priority Support (Live Chat)",
+        "Bulk Generation Tools",
+        "Early Access to New Features"
+      ],
+      popular: true,
+      gradient: "from-seo-accent/10 to-seo-primary/10",
+      border: "border-seo-accent"
+    },
+    {
+      name: "Scale",
+      price: "$35",
+      credits: "1000",
+      description: "For large stores with extensive product catalogs.",
+      features: [
+        "Everything in Growth, plus:",
+        "Multi-store Support",
+        "Priority Support (Live Chat)"
+      ],
+      popular: false,
+      gradient: "from-seo-secondary/10 to-seo-accent/10",
+      border: "border-seo-secondary/20"
+    }
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card className="p-6 hover:shadow-md transition-shadow">
-          <div className="flex flex-col h-full">
-            <div className="mb-4">
-              <div className="bg-blue-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-3">
-                <Coins className="h-6 w-6 text-seo-primary" />
+    <div className="py-8">
+      <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        {plans.map((plan, index) => (
+          <div
+            key={plan.name}
+            className={`relative rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-2 ${plan.border} bg-gradient-to-br ${plan.gradient} animate-scale-in group flex flex-col h-full`}
+          >
+            {plan.popular && (
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <div className="bg-gradient-to-r from-seo-accent to-seo-primary text-white text-sm font-bold py-2 px-6 rounded-full shadow-lg">
+                  MOST POPULAR
+                </div>
               </div>
-              <h3 className="text-lg font-medium">100 Credits</h3>
-              <div className="text-2xl font-bold mt-2 mb-1">$10</div>
-              <div className="text-sm text-gray-500 mb-4">$0.10 per product</div>
-            </div>
-            
-            <div className="mt-auto">
-              <Button
-                onClick={() => handlePurchase('100')}
-                className="w-full"
-                disabled={isProcessing['100']}
-              >
-                {isProcessing['100'] ? 'Processing...' : 'Purchase'}
-              </Button>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-6 border-seo-primary border-2 hover:shadow-md transition-shadow relative">
-          <div className="absolute -top-3 left-0 right-0 flex justify-center">
-            <span className="bg-seo-primary text-white px-3 py-1 text-xs font-medium rounded-full">
-              MOST POPULAR
-            </span>
-          </div>
-          
-          <div className="flex flex-col h-full">
-            <div className="mb-4">
-              <div className="bg-blue-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-3">
-                <Coins className="h-6 w-6 text-seo-primary" />
+            )}
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-display font-bold mb-4 text-gray-900">{plan.name}</h3>
+              <div className="text-5xl font-bold mb-2 text-gray-900">{plan.price}</div>
+              <p className="text-gray-600 mb-6">{plan.description}</p>
+              <div className="inline-flex items-center bg-white/50 rounded-full px-4 py-2 mb-6">
+                <span className="font-semibold text-seo-primary">
+                  {plan.credits} credits
+                  {plan.name === "Scale" && <span className="text-seo-accent ml-1"></span>}
+                </span>
               </div>
-              <h3 className="text-lg font-medium">500 Credits</h3>
-              <div className="text-2xl font-bold mt-2 mb-1">$40</div>
-              <div className="text-sm text-gray-500 mb-1">$0.08 per product</div>
-              <div className="text-sm text-green-600 font-medium">20% savings</div>
             </div>
-            
-            <div className="mt-auto">
-              <Button
-                onClick={() => handlePurchase('500')}
-                className="w-full bg-seo-accent hover:bg-seo-accent/90"
-                disabled={isProcessing['500']}
-              >
-                {isProcessing['500'] ? 'Processing...' : 'Purchase'}
-              </Button>
-            </div>
+            <ul className="space-y-4 mb-8 flex-grow">
+              {plan.features.map((feature, featureIndex) => (
+                <li key={featureIndex} className="flex items-start">
+                  <span className="text-gray-700">{feature}</span>
+                </li>
+              ))}
+            </ul>
+            <Button
+              className={`w-full py-6 text-lg font-semibold rounded-2xl transition-all duration-300 transform group-hover:scale-105 ${plan.popular ? 'bg-gradient-to-r from-seo-accent to-seo-primary text-white' : 'bg-seo-primary text-white'}`}
+              onClick={() => handlePurchase(plan.credits as '50' | '500' | '1000')}
+              disabled={isProcessing[plan.credits]}
+            >
+              {isProcessing[plan.credits] ? 'Processing...' : 'Purchase'}
+            </Button>
           </div>
-        </Card>
-        
-        <Card className="p-6 hover:shadow-md transition-shadow">
-          <div className="flex flex-col h-full">
-            <div className="mb-4">
-              <div className="bg-blue-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-3">
-                <Coins className="h-6 w-6 text-seo-primary" />
-              </div>
-              <h3 className="text-lg font-medium">1000 Credits</h3>
-              <div className="text-2xl font-bold mt-2 mb-1">$70</div>
-              <div className="text-sm text-gray-500 mb-1">$0.07 per product</div>
-              <div className="text-sm text-green-600 font-medium">30% savings</div>
-            </div>
-            
-            <div className="mt-auto">
-              <Button
-                onClick={() => handlePurchase('1000')}
-                className="w-full"
-                disabled={isProcessing['1000']}
-              >
-                {isProcessing['1000'] ? 'Processing...' : 'Purchase'}
-              </Button>
-            </div>
-          </div>
-        </Card>
+        ))}
       </div>
-      
-      <div className="bg-gray-50 p-4 rounded-lg border text-sm">
+      <div className="bg-gray-50 p-4 rounded-lg border text-sm mt-8">
         <h4 className="font-medium mb-2">What can I do with credits?</h4>
         <ul className="list-disc list-inside space-y-1 text-gray-700">
           <li>Generate SEO-optimized product descriptions</li>

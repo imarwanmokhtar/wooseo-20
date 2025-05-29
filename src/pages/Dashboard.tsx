@@ -223,3 +223,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+// No explicit credit plan values found in the visible context, but ensure any hardcoded references or props to CreditPurchase use the new tiers if present.

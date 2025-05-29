@@ -287,7 +287,7 @@ const Index = () => {
               {
                 name: "Starter",
                 price: "$5",
-                credits: "200",
+                credits: "50",
                 description: "Perfect for small stores getting started with SEO.",
                 features: [
                   "AI Content Generation",
@@ -308,7 +308,7 @@ const Index = () => {
               {
                 name: "Growth",
                 price: "$20", 
-                credits: "1000",
+                credits: "500",
                 description: "For growing stores with more products to optimize.",
                 features: [
                   "Everything in Starter, plus:",
@@ -324,7 +324,7 @@ const Index = () => {
               {
                 name: "Scale",
                 price: "$35",
-                credits: "2000", 
+                credits: "1000", 
                 description: "For large stores with extensive product catalogs.",
                 features: [
                   "Everything in Growth, plus:",
@@ -418,3 +418,4 @@ const Index = () => {
 };
 
 export default Index;
+// If there is a pricing/plans section, update the credit values and plan names to Starter: 50, Growth: 500, Scale: 1000. If not present, no changes needed.

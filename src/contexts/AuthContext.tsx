@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           { 
             id: userId, 
             email: userEmail,
-            credits: 10 // Give new users 10 free credits
+            credits: 3 // Give new users 3 free credits
           }
         ])
         .select()

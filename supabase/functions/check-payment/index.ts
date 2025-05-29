@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -85,8 +86,7 @@ serve(async (req) => {
       
       if (session.payment_status === 'paid' && session.metadata?.user_id === userData.user.id) {
         const creditsToAdd = parseInt(session.metadata.credits || '0');
-        const isLimitedOffer = session.metadata.is_limited_offer === 'true';
-        console.log("Payment verified, adding credits:", creditsToAdd, "Limited offer:", isLimitedOffer);
+        console.log("Payment verified, adding credits:", creditsToAdd);
         
         // Get current user credits
         const { data: currentUser, error: fetchError } = await supabaseClient
@@ -112,23 +112,6 @@ serve(async (req) => {
         if (updateError) {
           console.error("Error updating credits:", updateError);
           throw updateError;
-        }
-
-        // If it's a limited offer, record the purchase
-        if (isLimitedOffer) {
-          const { error: limitedOfferError } = await supabaseClient
-            .from('limited_offer_purchases')
-            .insert({
-              user_id: userData.user.id,
-              session_id: finalSessionId,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-
-          if (limitedOfferError) {
-            console.error("Error recording limited offer purchase:", limitedOfferError);
-            // Don't throw error here as credits were already added
-          }
         }
 
         // Mark payment as processed
