@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -18,8 +17,8 @@ serve(async (req) => {
     console.log("Creating checkout session...");
     
     // Get the request body
-    const { credits, price } = await req.json();
-    console.log("Request data:", { credits, price });
+    const { credits, price, isLimitedOffer } = await req.json();
+    console.log("Request data:", { credits, price, isLimitedOffer });
 
     // Authenticate user
     const supabaseClient = createClient(
@@ -41,36 +40,38 @@ serve(async (req) => {
 
     console.log("User authenticated:", userData.user.email);
 
+    // If it's a limited offer, check if user has already purchased
+    if (isLimitedOffer) {
+      const { data: existingPurchase, error: purchaseError } = await supabaseClient
+        .from('limited_offer_purchases')
+        .select('*')
+        .eq('user_id', userData.user.id)
+        .single();
+
+      if (purchaseError && purchaseError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        throw purchaseError;
+      }
+
+      if (existingPurchase) {
+        throw new Error("You have already purchased the limited offer");
+      }
+    }
+
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2023-10-16",
     });
 
-    // Check if customer exists
-    const customers = await stripe.customers.list({ 
-      email: userData.user.email, 
-      limit: 1 
-    });
-
-    let customerId;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      console.log("Existing customer found:", customerId);
-    } else {
-      console.log("Creating new customer");
-    }
-
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : userData.user.email,
+      payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `${credits} Credits`,
-              description: `${credits} credits for SEO content generation`,
+              name: `${credits} Credits Package`,
+              description: isLimitedOffer ? "Limited Offer - First 100 Users" : "Standard Credit Package",
             },
             unit_amount: price * 100, // Convert to cents
           },
@@ -78,20 +79,19 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/dashboard`,
+      success_url: `${Deno.env.get("FRONTEND_URL")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${Deno.env.get("FRONTEND_URL")}/payment-cancelled`,
       metadata: {
         user_id: userData.user.id,
-        credits: credits.toString(),
+        credits: credits,
+        is_limited_offer: isLimitedOffer ? "true" : "false"
       },
     });
 
-    console.log("Checkout session created:", session.id);
-
-    return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({ url: session.url }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Error creating checkout session:", error);
     return new Response(JSON.stringify({ error: error.message }), {

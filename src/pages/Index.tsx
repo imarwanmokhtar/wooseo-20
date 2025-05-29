@@ -209,26 +209,26 @@ const Index = () => {
             {[
               {
                 icon: <Sparkles className="h-8 w-8" />,
-                title: "AI-Powered Excellence",
-                description: "Our advanced AI understands your brand voice and creates content that resonates with your audience while maintaining SEO best practices.",
+                title: "Simple, Transparent Pricing",
+                description: "Say goodbye to confusing subscriptions and surprise bills. Our flexible credit system means you only pay for what you use — and each credit includes the full cost of AI generation. No API keys, no hidden fees.",
                 gradient: "from-seo-primary to-seo-secondary"
               },
               {
-                icon: <Clock className="h-8 w-8" />,
-                title: "Time-Saving Automation",
-                description: "Generate optimized content in seconds instead of hours. Focus on growing your business while we handle the SEO heavy lifting.",
+                icon: <TrendingUp className="h-8 w-8" />,
+                title: "Unmatched Value Per Dollar",
+                description: "With credits starting as low as $0.07 and no expiration dates, we offer industry-leading affordability without compromising quality. Our pricing beats subscription-based competitors and BYO-API plugins, making us the best value in the market.",
                 gradient: "from-seo-accent to-seo-primary"
               },
               {
-                icon: <TrendingUp className="h-8 w-8" />,
-                title: "Proven Results",
-                description: "Join thousands of stores that have seen significant traffic increases and improved search rankings with our solution.",
+                icon: <FileText className="h-8 w-8" />,
+                title: "Fully Customizable Prompts",
+                description: "Tweak and control the AI's behavior without technical barriers. Whether you want a formal tone, specific keywords, or brand-aligned messaging, our editable prompt system puts you in charge.",
                 gradient: "from-seo-secondary to-seo-accent"
               },
               {
                 icon: <Shield className="h-8 w-8" />,
-                title: "Secure & Reliable",
-                description: "Your data is protected with enterprise-grade security. We maintain strict privacy standards and secure API connections.",
+                title: "Works Outside WordPress",
+                description: "Unlike plugin-only solutions, we're a dedicated SaaS built for WooCommerce — giving you a clean, fast interface without cluttering your WordPress dashboard. Easily connect multiple stores and manage everything from one place.",
                 gradient: "from-seo-primary to-seo-secondary"
               },
               {
@@ -269,9 +269,14 @@ const Index = () => {
       <section className="py-24 bg-white relative">
         <div className="container mx-auto px-4">
           <div className="text-center mb-20 animate-fade-in-up">
-            <h2 className="text-4xl md:text-5xl font-display font-bold mb-6 bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
-              Simple, Credit-Based Pricing
-            </h2>
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <h2 className="text-4xl md:text-5xl font-display font-bold bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
+                Simple, Credit-Based Pricing
+              </h2>
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold py-2 px-6 rounded-full shadow-lg">
+                LIMITED OFFER for the first 100 users
+              </div>
+            </div>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Pay only for what you use. Each credit generates content for one product with no monthly commitments.
             </p>
@@ -281,8 +286,8 @@ const Index = () => {
             {[
               {
                 name: "Starter",
-                price: "$10",
-                credits: "100",
+                price: "$5",
+                credits: "200",
                 description: "Perfect for small stores getting started with SEO.",
                 features: [
                   "AI Content Generation",
@@ -302,8 +307,8 @@ const Index = () => {
               },
               {
                 name: "Growth",
-                price: "$40", 
-                credits: "500",
+                price: "$20", 
+                credits: "1000",
                 description: "For growing stores with more products to optimize.",
                 features: [
                   "Everything in Starter, plus:",
@@ -318,8 +323,8 @@ const Index = () => {
               },
               {
                 name: "Scale",
-                price: "$70",
-                credits: "1000", 
+                price: "$35",
+                credits: "2000", 
                 description: "For large stores with extensive product catalogs.",
                 features: [
                   "Everything in Growth, plus:",
@@ -334,7 +339,6 @@ const Index = () => {
               <div 
                 key={plan.name}
                 className={`relative rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-2 ${plan.border} bg-gradient-to-br ${plan.gradient} animate-scale-in group flex flex-col h-full`}
-                style={{ animationDelay: `${index * 0.1}s` }}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">

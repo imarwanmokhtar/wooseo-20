@@ -1,22 +1,21 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
-export async function createSubscription(creditPackage: '100' | '500' | '1000') {
+export async function createSubscription(creditPackage: '200' | '1000' | '2000') {
   try {
     console.log('Creating checkout session for credit package:', creditPackage);
     
-    // Define package prices (would normally come from environment or DB)
+    // Define package prices
     const prices = {
-      '100': 10, // $10 for 100 credits
-      '500': 40, // $40 for 500 credits
-      '1000': 70, // $70 for 1000 credits
+      '200': 5, // $5 for 200 credits
+      '1000': 20, // $20 for 1000 credits
+      '2000': 35, // $35 for 2000 credits
     };
     
     // Call our Supabase Edge Function
     const { data, error } = await supabase.functions.invoke('create-checkout', {
       body: { 
         credits: creditPackage,
-        price: prices[creditPackage],
+        price: prices[creditPackage]
       }
     });
 
@@ -38,7 +37,7 @@ export async function verifyPayment(sessionId?: string | null) {
   try {
     console.log('Verifying payment with session ID:', sessionId);
     
-    const body: any = {};
+    const body: { session_id?: string } = {};
     if (sessionId) {
       body.session_id = sessionId;
     }
