@@ -17,9 +17,7 @@ import ContentGeneration from "./pages/ContentGeneration";
 import Settings from "./pages/Settings";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import NotFound from "./pages/NotFound";
-import { Analytics } from "@vercel/analytics/react"
 import { initGA } from "./ga";
-import { SpeedInsights } from "@vercel/speed-insights/next"
 
 // Create the React-Query client once (outside the component)
 const queryClient = new QueryClient();
@@ -33,8 +31,6 @@ function App() {
   return (
     
     <QueryClientProvider client={queryClient}>
-      <Analytics/>
-      <SpeedInsights/>
       <TooltipProvider>
         <Toaster />
         <BrowserRouter>
