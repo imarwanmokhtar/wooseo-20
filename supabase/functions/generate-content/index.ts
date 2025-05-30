@@ -137,6 +137,20 @@ function parseOpenAIResponse(response: any): any {
   }
 }
 
+function generatePermalink(title: string): string {
+  // Generate permalink from title, max 50 characters
+  const permalink = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+    .substring(0, 50) // Limit to 50 characters
+    .replace(/-$/, ''); // Remove trailing hyphen if present after truncation
+  
+  return permalink;
+}
+
 function parseAIResponse(text: string): any {
   // Parse the response text to extract sections
   const longDescMatch = text.match(/LONG DESCRIPTION:\s*([\s\S]*?)(?=SHORT DESCRIPTION:|$)/);
@@ -168,16 +182,22 @@ function parseAIResponse(text: string): any {
   // Extract alt text
   const altText = altTextMatch ? altTextMatch[1].trim() : '';
   
+  // Extract meta title and generate permalink
+  const metaTitle = metaTitleMatch ? metaTitleMatch[1].trim() : '';
+  const permalink = generatePermalink(metaTitle);
+  
   console.log('Final parsed focus keywords (exactly 3):', focusKeywords);
   console.log('Final parsed alt text:', altText);
+  console.log('Generated permalink from title:', permalink);
   
   return {
     short_description: shortDescMatch ? shortDescMatch[1].trim() : '',
     long_description: longDescMatch ? longDescMatch[1].trim() : '',
-    meta_title: metaTitleMatch ? metaTitleMatch[1].trim() : '',
+    meta_title: metaTitle,
     meta_description: metaDescMatch ? metaDescMatch[1].trim() : '',
     alt_text: altText,
     focus_keywords: focusKeywords,
+    permalink: permalink, // Add the generated permalink
     product_id: 0,
     user_id: '',
   };

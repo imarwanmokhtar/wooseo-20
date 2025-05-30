@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { WooCommerceCredentials, StoreUsage } from '@/types';
 import { useAuth } from './AuthContext';
@@ -95,18 +96,35 @@ export const MultiStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const refreshUsage = async () => {
-    if (!user?.id || stores.length === 0) return;
+    if (!user?.id || stores.length === 0) {
+      console.log('Skipping refreshUsage: no user or stores', { userId: user?.id, storesLength: stores.length });
+      return;
+    }
 
     try {
-      // Since we removed the generated_content table, we'll initialize empty usage
-      // In the future, usage tracking could be implemented differently if needed
-      const usage = stores.map(store => ({
-        store_id: store.id || 'default',
+      console.log('Refreshing store usage for user:', user.id);
+      
+      // Fetch the actual used_credits from the woocommerce_credentials table
+      const { data: storeCreditsData, error } = await supabase
+        .from('woocommerce_credentials')
+        .select('id, store_name, used_credits')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching store credits:', error);
+        return;
+      }
+
+      console.log('Fetched store credits data:', storeCreditsData);
+
+      const usage = (storeCreditsData || []).map(store => ({
+        store_id: store.id,
         store_name: store.store_name,
-        credits_used: 0,
-        products_generated: 0,
+        credits_used: store.used_credits || 0,
+        products_generated: 0, // We could track this separately if needed
       }));
 
+      console.log('Calculated store usage:', usage);
       setStoreUsage(usage);
     } catch (error) {
       console.error('Error fetching usage:', error);
@@ -132,10 +150,11 @@ export const MultiStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [user?.id]);
 
   useEffect(() => {
-    if (stores.length > 0) {
+    if (stores.length > 0 && user?.id) {
+      console.log('Stores updated, refreshing usage...');
       refreshUsage();
     }
-  }, [stores]);
+  }, [stores, user?.id]);
 
   return (
     <MultiStoreContext.Provider

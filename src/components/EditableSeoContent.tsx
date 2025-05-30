@@ -57,7 +57,8 @@ const EditableSeoContent: React.FC<EditableSeoContentProps> = ({
         'short_description': 'short_description',
         'long_description': 'long_description',
         'alt_text': 'alt_text',
-        'focus_keywords': 'focus_keywords'
+        'focus_keywords': 'focus_keywords',
+        'permalink': 'permalink'
       };
 
       const field = fieldMap[fieldName];
@@ -214,6 +215,7 @@ const EditableSeoContent: React.FC<EditableSeoContentProps> = ({
       <CardContent className="space-y-6">
         {renderEditableField('meta_title', 'Meta Title (RankMath)', editableContent.meta_title)}
         {renderEditableField('meta_description', 'Meta Description (RankMath)', editableContent.meta_description)}
+        {renderEditableField('permalink', 'Permalink (RankMath)', editableContent.permalink || '')}
         {renderFocusKeywordsField()}
         {renderEditableField('short_description', 'Short Description', editableContent.short_description, true)}
         {renderEditableField('long_description', 'Long Description (HTML)', editableContent.long_description, true)}

@@ -281,6 +281,20 @@ export async function updateProductSeo(
   }
 }
 
+function generatePermalink(title: string): string {
+  // Generate permalink from title, max 50 characters
+  const permalink = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+    .substring(0, 50) // Limit to 50 characters
+    .replace(/-$/, ''); // Remove trailing hyphen if present after truncation
+  
+  return permalink;
+}
+
 export async function updateProductWithSeoContent(
   credentials: WooCommerceCredentials,
   productId: number,
@@ -288,49 +302,73 @@ export async function updateProductWithSeoContent(
 ): Promise<boolean> {
   try {
     console.log('Updating WooCommerce product with comprehensive SEO content:', productId);
-    console.log('Focus keywords to update:', seoContent.focus_keywords);
+    console.log('All focus keywords to update:', seoContent.focus_keywords);
 
-    // Extract the first focus keyword for RankMath (it typically uses the primary one)
+    // Parse all focus keywords
     const focusKeywords = seoContent.focus_keywords || '';
-    const primaryFocusKeyword = focusKeywords.split(',')[0]?.trim() || '';
+    const keywordArray = focusKeywords.split(',').map(k => k.trim()).filter(k => k);
+    const primaryFocusKeyword = keywordArray[0] || '';
     
+    console.log('Parsed keywords array:', keywordArray);
     console.log('Primary focus keyword for RankMath:', primaryFocusKeyword);
 
-    // Prepare comprehensive meta data for RankMath SEO and other plugins
+    // Generate permalink from meta title (max 50 characters)
+    const permalink = seoContent.permalink || generatePermalink(seoContent.meta_title);
+    console.log('Using permalink:', permalink);
+
+    // Use the generated alt text for both alt text and image caption/description
+    const imageAltText = seoContent.alt_text || seoContent.meta_title;
+    console.log('Using alt text for images:', imageAltText);
+
+    // Prepare comprehensive meta data for RankMath SEO - ensure all values are strings
     const metaData = [
-      // RankMath SEO fields - use the actual focus keywords instead of placeholder
+      // RankMath SEO fields - use ALL focus keywords
       { key: 'rank_math_title', value: seoContent.meta_title },
       { key: 'rank_math_description', value: seoContent.meta_description },
-      { key: 'rank_math_focus_keyword', value: primaryFocusKeyword },
-      // Store all focus keywords as well
-      { key: 'rank_math_focus_keywords', value: focusKeywords },
+      { key: 'rank_math_focus_keyword', value: focusKeywords }, // Send ALL keywords, not just primary
+      { key: 'rank_math_pillar_content', value: 'off' },
+      { key: 'rank_math_robots', value: 'index,follow' }, // Convert array to comma-separated string
+      // Store individual keywords for RankMath (it can handle multiple)
+      ...keywordArray.map((keyword, index) => ({
+        key: `rank_math_focus_keyword_${index + 1}`,
+        value: keyword
+      })),
       // Yoast SEO compatibility
       { key: '_yoast_wpseo_title', value: seoContent.meta_title },
       { key: '_yoast_wpseo_metadesc', value: seoContent.meta_description },
       { key: '_yoast_wpseo_focuskw', value: primaryFocusKeyword },
-      // Image alt text and caption
-      { key: '_wp_attachment_image_alt', value: seoContent.alt_text || seoContent.meta_title },
-      { key: 'product_image_caption', value: seoContent.alt_text || seoContent.meta_title },
+      // Image alt text, caption, and description using the generated alt text
+      { key: '_wp_attachment_image_alt', value: imageAltText },
+      { key: 'product_image_caption', value: imageAltText },
+      { key: 'product_image_description', value: imageAltText },
+      { key: '_wp_attachment_image_caption', value: imageAltText },
+      { key: '_wp_attachment_image_description', value: imageAltText },
       // Additional SEO meta fields
       { key: 'seo_focus_keywords', value: focusKeywords },
       { key: 'ai_generated_keywords', value: focusKeywords },
+      // Permalink (slug)
+      { key: '_wp_slug', value: permalink },
     ];
 
     const updateData = {
       short_description: seoContent.short_description,
       description: seoContent.long_description,
+      slug: permalink, // WooCommerce product slug
       meta_data: metaData
     };
 
     console.log('Sending update data to WooCommerce:', updateData);
+    console.log('All focus keywords being sent:', focusKeywords);
+    console.log('Generated permalink (50 chars max):', permalink);
 
     const success = await updateProductSeo(credentials, productId, updateData);
     
     if (success) {
-      console.log('Product updated successfully in WooCommerce with focus keywords:', focusKeywords);
+      console.log('Product updated successfully in WooCommerce with all focus keywords:', focusKeywords);
+      console.log('Permalink set to:', permalink);
       
-      // Also update product images with alt text if they exist
-      await updateProductImages(credentials, productId, seoContent.alt_text || seoContent.meta_title);
+      // Also update product images with alt text, caption, and description
+      await updateProductImages(credentials, productId, imageAltText);
     } else {
       console.error('Failed to update product in WooCommerce');
     }
@@ -348,7 +386,7 @@ export async function updateProductImages(
   altText: string
 ): Promise<boolean> {
   try {
-    console.log('Updating product images with alt text:', productId);
+    console.log('Updating product images with alt text, caption, and description:', productId);
     
     // First, get the current product to see existing images
     const productUrl = `${credentials.url}/wp-json/${credentials.version}/products/${productId}`;
@@ -370,12 +408,14 @@ export async function updateProductImages(
     const product = await getResponse.json();
     
     if (product.images && product.images.length > 0) {
-      // Update images with alt text
+      // Update images with alt text, caption, and description
       const updatedImages = product.images.map((image: any) => ({
         id: image.id,
         src: image.src,
         alt: altText,
-        name: image.name || altText,
+        name: altText, // Image title/name
+        caption: altText, // Image caption
+        description: altText, // Image description
       }));
 
       const updateResponse = await fetch(productUrl, {
@@ -390,7 +430,7 @@ export async function updateProductImages(
       });
 
       if (updateResponse.ok) {
-        console.log('Product images updated with alt text successfully');
+        console.log('Product images updated with alt text, caption, and description successfully');
         return true;
       }
     }

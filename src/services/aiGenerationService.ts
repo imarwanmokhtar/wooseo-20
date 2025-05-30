@@ -125,22 +125,90 @@ export async function generateSeoContent(
   product: Product,
   prompt: string,
   userId: string,
-  model: AIModel = 'gemini-2.0-flash'
+  model: AIModel = 'gemini-2.0-flash',
+  storeId?: string
 ): Promise<SeoContent> {
-  console.log('Starting SEO content generation for product:', product.name, 'with model:', model);
+  console.log('Starting SEO content generation for product:', product.name, 'with model:', model, 'for store:', storeId);
 
-  // Get store URL from the user's WooCommerce credentials
+  // Get store URL and credentials for the specific active store
   const { data: storeData, error: storeError } = await supabase
     .from('woocommerce_credentials')
-    .select('store_url')
+    .select('store_url, consumer_key, consumer_secret')
     .eq('user_id', userId)
-    .eq('is_active', true)
+    .eq('id', storeId) // Use the specific store ID, not just is_active
     .single();
 
-  const storeUrl = storeData?.store_url || 'https://yourstore.com';
-  console.log('Using store URL for internal links:', storeUrl);
+  if (storeError || !storeData) {
+    console.error('Error fetching store data:', storeError);
+    throw new Error('Could not find store credentials. Please ensure your store is properly connected.');
+  }
 
-  // Prepare the product data for the prompt
+  const storeUrl = storeData.store_url;
+  console.log('Using actual store URL for internal links:', storeUrl);
+
+  // Fetch real categories and products for link examples
+  let categoryExamples = '';
+  let productExamples = '';
+
+  if (storeData.consumer_key && storeData.consumer_secret) {
+    try {
+      const auth = btoa(`${storeData.consumer_key}:${storeData.consumer_secret}`);
+      
+      // Fetch actual categories from the store
+      console.log('Fetching real categories from store...');
+      const categoriesResponse = await fetch(`${storeUrl}/wp-json/wc/v3/products/categories?per_page=20`, {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (categoriesResponse.ok) {
+        const categories = await categoriesResponse.json();
+        console.log('Found categories:', categories.length);
+        const categoryLinks = categories
+          .filter((cat: any) => cat.count > 0) // Only categories with products
+          .slice(0, 8)
+          .map((cat: any) => `${storeUrl}/product-category/${cat.slug}`);
+        
+        if (categoryLinks.length > 0) {
+          categoryExamples = `\n\nYOUR ACTUAL STORE CATEGORY LINKS TO USE:\n${categoryLinks.join('\n')}`;
+          console.log('Category examples to include:', categoryExamples);
+        }
+      } else {
+        console.log('Failed to fetch categories:', categoriesResponse.status);
+      }
+
+      // Fetch actual products from the store
+      console.log('Fetching real products from store...');
+      const productsResponse = await fetch(`${storeUrl}/wp-json/wc/v3/products?per_page=15&status=publish`, {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (productsResponse.ok) {
+        const products = await productsResponse.json();
+        console.log('Found products:', products.length);
+        const productLinks = products
+          .filter((prod: any) => prod.status === 'publish' && prod.slug) // Only published products with slugs
+          .slice(0, 8)
+          .map((prod: any) => `${storeUrl}/product/${prod.slug}`);
+        
+        if (productLinks.length > 0) {
+          productExamples = `\n\nYOUR ACTUAL STORE PRODUCT LINKS TO USE:\n${productLinks.join('\n')}`;
+          console.log('Product examples to include:', productExamples);
+        }
+      } else {
+        console.log('Failed to fetch products:', productsResponse.status);
+      }
+    } catch (error) {
+      console.error('Error fetching real store data for examples:', error);
+    }
+  }
+
+  // Prepare the product data for the prompt with actual store data
   const categories = product.categories.map(cat => cat.name).join(', ');
   const formattedPrompt = prompt
     .replace(/\{\{name\}\}/g, product.name)
@@ -148,7 +216,13 @@ export async function generateSeoContent(
     .replace(/\{\{price\}\}/g, product.price)
     .replace(/\{\{description\}\}/g, product.description)
     .replace(/\{\{categories\}\}/g, categories)
-    .replace(/\{\{store_url\}\}/g, storeUrl);
+    .replace(/\{\{store_url\}\}/g, storeUrl) + categoryExamples + productExamples;
+
+  console.log('Final prompt includes real store data:', {
+    storeUrl,
+    hasCategoryExamples: categoryExamples.length > 0,
+    hasProductExamples: productExamples.length > 0
+  });
 
   try {
     // First, check if the user has enough credits
@@ -195,7 +269,7 @@ export async function generateSeoContent(
 
     console.log('Parsed SEO content successfully:', seoContent);
 
-    // Deduct credits from the user's account
+    // Deduct credits from the user's account and update store credits
     const { error: updateError } = await supabase
       .from('users')
       .update({ credits: userData.credits - requiredCredits })
@@ -204,6 +278,40 @@ export async function generateSeoContent(
     if (updateError) {
       console.error('Error updating user credits:', updateError);
       throw new Error('Failed to update credits. The content was generated but your credits were not deducted.');
+    }
+
+    // Update store credits if storeId is provided
+    if (storeId) {
+      console.log('Updating store credits for store:', storeId);
+      
+      // Get current store credits
+      const { data: storeCreditsData, error: storeCreditsError } = await supabase
+        .from('woocommerce_credentials')
+        .select('used_credits')
+        .eq('id', storeId)
+        .eq('user_id', userId)
+        .single();
+
+      if (storeCreditsError) {
+        console.error('Error fetching store credits:', storeCreditsError);
+        // Don't throw here as the main operation succeeded
+      } else {
+        const currentUsedCredits = storeCreditsData?.used_credits || 0;
+        const newUsedCredits = currentUsedCredits + requiredCredits;
+
+        const { error: updateStoreError } = await supabase
+          .from('woocommerce_credentials')
+          .update({ used_credits: newUsedCredits })
+          .eq('id', storeId)
+          .eq('user_id', userId);
+
+        if (updateStoreError) {
+          console.error('Error updating store credits:', updateStoreError);
+          // Don't throw here as the main operation succeeded
+        } else {
+          console.log(`Store credits updated: ${currentUsedCredits} -> ${newUsedCredits}`);
+        }
+      }
     }
 
     console.log(`SEO content generated successfully and ${requiredCredits} credits deducted`);

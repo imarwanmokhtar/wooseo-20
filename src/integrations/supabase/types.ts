@@ -73,6 +73,7 @@ export type Database = {
           store_name: string
           store_url: string
           updated_at: string
+          used_credits: number | null
           user_id: string
         }
         Insert: {
@@ -84,6 +85,7 @@ export type Database = {
           store_name: string
           store_url: string
           updated_at?: string
+          used_credits?: number | null
           user_id: string
         }
         Update: {
@@ -95,6 +97,7 @@ export type Database = {
           store_name?: string
           store_url?: string
           updated_at?: string
+          used_credits?: number | null
           user_id?: string
         }
         Relationships: []

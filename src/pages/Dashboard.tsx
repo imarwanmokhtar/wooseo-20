@@ -98,8 +98,8 @@ const Dashboard = () => {
         )}
 
         {!hasStores || showStoreSetup ? (
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* WooCommerce Setup Card */}
+          <div className="space-y-8">
+            {/* WooCommerce Setup Card - Now at the top */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -132,7 +132,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Credit Purchase Card */}
+            {/* Credit Purchase Card - Now at the bottom */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -223,5 +223,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-// No explicit credit plan values found in the visible context, but ensure any hardcoded references or props to CreditPurchase use the new tiers if present.
