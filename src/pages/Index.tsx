@@ -44,7 +44,7 @@ const Index = () => {
                 className="bg-seo-accent hover:bg-seo-accent/90 text-white py-6 px-10 text-lg font-semibold rounded-2xl transform hover:scale-105 transition-all duration-200 shadow-2xl hover:shadow-seo-accent/25 group"
               >
                 <Link to={user ? "/dashboard" : "/register"} className="flex items-center">
-                  {user ? "Go to Dashboard" : "Start Free"}
+                  {user ? "Go to Dashboard" : "Start Optimizing Free"}
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>

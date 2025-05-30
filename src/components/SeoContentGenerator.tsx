@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
 import { generateSeoContent, DEFAULT_PROMPT_TEMPLATE } from '@/services/aiGenerationService';
-import { updateProductWithSeoContent, getWooCommerceCredentials, testConnection, updateCredits } from '@/services/wooCommerceApi';
+import { updateProductWithSeoContent, getWooCommerceCredentials } from '@/services/wooCommerceApi';
 import { Product, SeoContent } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,26 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Wand2, Save, Loader2, AlertCircle } from 'lucide-react';
 import EditableSeoContent from './EditableSeoContent';
-import ModelSelector, { AIModel } from './ModelSelector';
-
-// Define model configuration
-const modelConfig = {
-  'gemini-2.0-flash': {
-    name: 'Gemini 2.0 Flash',
-    credits: 1,
-    description: 'Fast and efficient content generation'
-  },
-  'gemini-2.0-pro': {
-    name: 'Gemini 2.0 Pro',
-    credits: 2,
-    description: 'High-quality content with advanced features'
-  },
-  'claude-3-opus': {
-    name: 'Claude 3 Opus',
-    credits: 3,
-    description: 'Premium content generation with maximum quality'
-  }
-} as const;
+import ModelSelector, { AIModel, modelConfig } from './ModelSelector';
 
 interface SeoContentGeneratorProps {
   products: Product[];
@@ -41,8 +22,8 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
   products, 
   onContentGenerated 
 }) => {
-  const { user, credits = 0, refreshCredits, loading: authLoading } = useAuth();
-  const { activeStore } = useMultiStore();
+  const { user, credits, refreshCredits } = useAuth();
+  const { activeStore, refreshUsage } = useMultiStore();
   const [selectedModel, setSelectedModel] = useState<AIModel>('gemini-2.0-flash');
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT_TEMPLATE);
   const [generating, setGenerating] = useState(false);
@@ -50,125 +31,93 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
   const [generatedContent, setGeneratedContent] = useState<{ [productId: number]: SeoContent }>({});
   const [error, setError] = useState<string | null>(null);
   const [updatedProducts, setUpdatedProducts] = useState<Set<number>>(new Set());
-  const [currentProduct, setCurrentProduct] = useState<number | null>(null);
-
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading...</span>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="p-8">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            You must be logged in to use this feature. Please log in and try again.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  if (!modelConfig[selectedModel]) {
-    setSelectedModel('gemini-2.0-flash');
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading model configuration...</span>
-      </div>
-    );
-  }
 
   const totalCreditsRequired = products.length * modelConfig[selectedModel].credits;
-  const canAffordGeneration = credits >= modelConfig[selectedModel].credits;
+  const canAffordGeneration = credits >= totalCreditsRequired;
 
-  const handleGenerateContent = async (product: Product) => {
+  const handleGenerateContent = async () => {
+    setError(null);
+    
+    if (!user) {
+      toast.error('You must be logged in to generate content');
+      setError('Authentication required. Please log in and try again.');
+      return;
+    }
+
+    if (!activeStore?.id) {
+      toast.error('No active store selected');
+      setError('No active store selected. Please select a store first.');
+      return;
+    }
+
+    if (products.length === 0) {
+      toast.error('No products selected');
+      return;
+    }
+
+    if (!canAffordGeneration) {
+      setError(`You need ${totalCreditsRequired} credits to generate content for ${products.length} product(s) with ${modelConfig[selectedModel].name}. You have ${credits} credits.`);
+      toast.error('Not enough credits');
+      return;
+    }
+
+    setGenerating(true);
+    const newContent: { [productId: number]: SeoContent } = {};
+    let successCount = 0;
+
     try {
-      if (!product) {
-        toast.error("No product selected");
-        return;
+      for (const product of products) {
+        console.log(`Generating content for product: ${product.name} using ${selectedModel}`);
+        toast.info(`Generating content for ${product.name} with ${modelConfig[selectedModel].name}...`);
+
+        try {
+          const content = await generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id);
+          // Add store_id to the content
+          content.store_id = activeStore.id;
+          newContent[product.id] = content;
+          successCount++;
+
+          if (onContentGenerated) {
+            onContentGenerated(product.id, content);
+          }
+        } catch (error) {
+          console.error(`Error generating content for ${product.name}:`, error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          toast.error(`Failed to generate content for ${product.name}: ${errorMessage}`);
+        }
       }
 
-      if (!user || !activeStore?.id) {
-        toast.error("Please select a store first");
-        return;
+      if (successCount > 0) {
+        setGeneratedContent(prev => ({ ...prev, ...newContent }));
+        toast.success(`Generated SEO content for ${successCount} product(s) using ${modelConfig[selectedModel].name}`);
+        
+        // Refresh both user credits and store usage
+        console.log('Refreshing credits and store usage...');
+        await Promise.all([
+          refreshCredits(),
+          refreshUsage()
+        ]);
+        console.log('Credits and store usage refreshed');
+      } else {
+        setError('Failed to generate content for any products. Please try again.');
       }
-
-      const modelInfo = modelConfig[selectedModel];
-      if (!modelInfo) {
-        toast.error("Invalid model selected");
-        return;
-      }
-
-      if (credits < modelInfo.credits) {
-        toast.error(`You need ${modelInfo.credits} credits to generate content with ${modelInfo.name}. You have ${credits} credits.`);
-        return;
-      }
-
-      setGenerating(true);
-      setCurrentProduct(product.id);
-      setError(null);
-
-      const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
-      if (!credentials) {
-        toast.error("Failed to fetch store credentials. Please check your store connection.");
-        setError("Failed to fetch store credentials. Please check your store connection.");
-        return;
-      }
-
-      const connectionTest = await testConnection(credentials);
-      if (!connectionTest.success) {
-        toast.error(connectionTest.message);
-        setError(connectionTest.message);
-        return;
-      }
-
-      const content = await generateSeoContent(product, prompt, user.id, selectedModel);
-      
-      if (!content) {
-        throw new Error("Failed to generate content");
-      }
-
-      const savedContent = await saveSeoContent(user.id, {
-        ...content,
-        product_id: product.id,
-        store_id: activeStore.id
-      });
-
-      const updateSuccess = await updateProductWithSeoContent(credentials, product.id, savedContent);
-      
-      if (!updateSuccess) {
-        throw new Error("Failed to update product in WooCommerce");
-      }
-
-      const creditsUpdated = await updateCredits(user.id, -modelInfo.credits);
-      if (!creditsUpdated) {
-        console.error("Failed to update credits");
-      }
-
-      await refreshCredits();
-
-      toast.success(`Successfully generated and updated content for ${product.name}`);
-      onContentGenerated(product.id, savedContent);
     } catch (error) {
       console.error('Error generating content:', error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
-      setError(errorMessage);
-      toast.error(errorMessage);
+      setError(error instanceof Error ? error.message : 'Failed to generate content');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate content');
     } finally {
       setGenerating(false);
-      setCurrentProduct(null);
     }
   };
 
   const handleUpdateWooCommerce = async () => {
     setError(null);
     
+    if (!user) {
+      toast.error('You must be logged in');
+      return;
+    }
+
     if (!activeStore?.id) {
       toast.error('No active store selected');
       setError('No active store selected. Please select a store first.');
@@ -288,10 +237,10 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
               </div>
               <div className="text-sm text-gray-500">
                 {canAffordGeneration ? (
-                  `Cost per product: ${modelConfig[selectedModel].credits} credit${modelConfig[selectedModel].credits !== 1 ? 's' : ''}`
+                  `Total cost: ${totalCreditsRequired} credit${totalCreditsRequired !== 1 ? 's' : ''} (${modelConfig[selectedModel].credits} per product)`
                 ) : (
                   <span className="text-red-500">
-                    Need {modelConfig[selectedModel].credits} credits per product (you have {credits})
+                    Need {totalCreditsRequired} credits (you have {credits})
                   </span>
                 )}
               </div>
@@ -313,13 +262,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
               </div>
               <div className="space-x-2">
                 <Button 
-                  onClick={() => {
-                    if (products.length > 0) {
-                      handleGenerateContent(products[0]);
-                    } else {
-                      toast.error("No products selected");
-                    }
-                  }}
+                  onClick={handleGenerateContent} 
                   disabled={generating || products.length === 0 || !canAffordGeneration || !activeStore}
                   className="min-w-[140px]"
                 >
