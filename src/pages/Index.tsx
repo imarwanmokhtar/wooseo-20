@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
@@ -11,7 +12,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Hero Section */}
+      {/* SEO Optimized Hero Section */}
       <header className="relative bg-gradient-to-br from-seo-primary via-seo-secondary to-seo-primary/80 text-white overflow-hidden">
         {/* Background effects */}
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
@@ -20,23 +21,27 @@ const Index = () => {
         
         <div className="container mx-auto py-24 px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center animate-fade-in">
+            {/* SEO Badge with Focus Keywords */}
             <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-6 py-2 mb-8 border border-white/20 animate-scale-in">
               <Sparkles className="h-4 w-4 mr-2" />
-              <span className="text-sm font-medium">AI-Powered SEO Revolution</span>
+              <span className="text-sm font-medium">Ultimate AI SEO Content Generator</span>
             </div>
             
+            {/* H1 with Primary Focus Keyword and Power Words */}
             <h1 className="text-6xl md:text-7xl font-display font-extrabold tracking-tight mb-8 leading-tight animate-fade-in">
-              <span className="block">Transform Your</span>
+              <span className="block">Best WooCommerce SEO</span>
               <span className="block bg-gradient-to-r from-seo-accent to-white bg-clip-text text-transparent">
-                WooCommerce SEO
+                Content Generator Tool
               </span>
             </h1>
             
+            {/* Optimized Meta Description Content */}
             <p className="text-xl md:text-2xl max-w-4xl mx-auto mb-12 text-white/90 leading-relaxed animate-fade-in">
-              Generate SEO-optimized product descriptions, meta titles, and more with our 
-              AI assistant. Save time and boost your store's search visibility instantly.
+              Generate professional SEO-optimized product descriptions, meta titles, and focus keywords with our 
+              advanced AI content generator. Boost your WooCommerce store's search rankings and drive more organic traffic instantly.
             </p>
             
+            {/* CTA Buttons with Action Keywords */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16 animate-fade-in">
               <Button 
                 asChild 
@@ -44,7 +49,7 @@ const Index = () => {
                 className="bg-seo-accent hover:bg-seo-accent/90 text-white py-6 px-10 text-lg font-semibold rounded-2xl transform hover:scale-105 transition-all duration-200 shadow-2xl hover:shadow-seo-accent/25 group"
               >
                 <Link to={user ? "/dashboard" : "/register"} className="flex items-center">
-                  {user ? "Go to Dashboard" : "Start Optimizing Free"}
+                  {user ? "Access Dashboard Now" : "Start Free SEO Optimization"}
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
@@ -55,45 +60,45 @@ const Index = () => {
                 size="lg" 
                 className="border-2 border-white/30 text-gray-900 bg-white hover:bg-gray-50 py-6 px-8 text-lg rounded-2xl backdrop-blur-sm transition-all duration-200 hover:scale-105"
               >
-                <Link to="#how-it-works" onClick={(e) => {
+                <Link to="#woocommerce-seo-features" onClick={(e) => {
                   e.preventDefault();
-                  document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-                }}>Learn More</Link>
+                  document.getElementById('woocommerce-seo-features')?.scrollIntoView({ behavior: 'smooth' });
+                }}>Discover SEO Features</Link>
               </Button>
             </div>
             
-            {/* Stats */}
+            {/* SEO Stats with Keywords */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
               <div className="text-center animate-scale-in">
                 <div className="text-3xl font-bold text-seo-accent">10K+</div>
-                <div className="text-white/80">Products Optimized</div>
+                <div className="text-white/80">Products SEO Optimized</div>
+              </div>
+              <div className="text-center animate-scale-in">
+                <div className="text-3xl font-bold text-seo-accent">90+</div>
+                <div className="text-white/80">RankMath SEO Score</div>
               </div>
               <div className="text-center animate-scale-in">
                 <div className="text-3xl font-bold text-seo-accent">40%</div>
-                <div className="text-white/80">Average Traffic Boost</div>
-              </div>
-              <div className="text-center animate-scale-in">
-                <div className="text-3xl font-bold text-seo-accent">70+</div>
-                <div className="text-white/80">RankMath Score</div>
+                <div className="text-white/80">Traffic Increase</div>
               </div>
               <div className="text-center animate-scale-in">
                 <div className="text-3xl font-bold text-seo-accent">2 Min</div>
-                <div className="text-white/80">Setup Time</div>
+                <div className="text-white/80">Quick Setup</div>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Features Section */}
-      <section className="py-24 bg-white relative">
+      {/* SEO Optimized Features Section */}
+      <section id="woocommerce-seo-features" className="py-24 bg-white relative">
         <div className="container mx-auto px-4">
           <div className="text-center mb-20 animate-fade-in">
             <h2 className="text-4xl md:text-5xl font-display font-bold mb-6 bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
-              Powerful SEO Tools for E-commerce
+              Professional WooCommerce SEO Tools for E-commerce Success
             </h2>
-            <p id="how-it-works" className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Everything you need to dominate search results and drive organic traffic
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Everything you need to dominate search engine results and drive sustainable organic traffic to your online store
             </p>
           </div>
           
@@ -102,9 +107,9 @@ const Index = () => {
               <div className="bg-gradient-to-br from-seo-primary/10 to-seo-secondary/10 p-6 rounded-3xl mb-6 w-20 h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-seo-primary/20">
                 <FileText className="h-10 w-10 text-seo-primary" />
               </div>
-              <h3 className="text-2xl font-display font-semibold mb-4 text-gray-900">AI-Generated Content</h3>
+              <h3 className="text-2xl font-display font-semibold mb-4 text-gray-900">AI SEO Content Generator</h3>
               <p className="text-gray-600 text-lg leading-relaxed">
-                Create engaging product descriptions and SEO metadata with our advanced AI that understands your brand voice.
+                Create engaging product descriptions and SEO metadata with our advanced AI content generator that understands your brand voice and optimizes for search engines.
               </p>
             </div>
             
@@ -112,9 +117,9 @@ const Index = () => {
               <div className="bg-gradient-to-br from-seo-accent/10 to-seo-primary/10 p-6 rounded-3xl mb-6 w-20 h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-seo-accent/20">
                 <Tag className="h-10 w-10 text-seo-accent" />
               </div>
-              <h3 className="text-2xl font-display font-semibold mb-4 text-gray-900">WooCommerce Integration</h3>
+              <h3 className="text-2xl font-display font-semibold mb-4 text-gray-900">WooCommerce SEO Integration</h3>
               <p className="text-gray-600 text-lg leading-relaxed">
-                Seamlessly connect to your store to import products and push optimized content with just one click.
+                Seamlessly connect to your WooCommerce store to import products and push SEO-optimized content with just one click for maximum search visibility.
               </p>
             </div>
             
@@ -122,24 +127,24 @@ const Index = () => {
               <div className="bg-gradient-to-br from-seo-secondary/10 to-seo-accent/10 p-6 rounded-3xl mb-6 w-20 h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-seo-secondary/20">
                 <BarChart3 className="h-10 w-10 text-seo-secondary" />
               </div>
-              <h3 className="text-2xl font-display font-semibold mb-4 text-gray-900">RankMath Optimized</h3>
+              <h3 className="text-2xl font-display font-semibold mb-4 text-gray-900">RankMath SEO Optimization</h3>
               <p className="text-gray-600 text-lg leading-relaxed">
-                Generate content specifically optimized for RankMath plugin with 90+ SEO scores guaranteed.
+                Generate content specifically optimized for RankMath plugin with guaranteed 90+ SEO scores for superior search engine performance.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-24 bg-gradient-to-br from-gray-50 to-seo-light relative">
+      {/* How It Works - SEO Optimized */}
+      <section className="py-24 bg-gradient-to-br from-gray-50 to-seo-light relative">
         <div className="container mx-auto px-4">
           <div className="text-center mb-20 animate-fade-in-up">
             <h2 className="text-4xl md:text-5xl font-display font-bold mb-6 text-gray-900">
-              How It Works
+              How Our WooCommerce SEO Generator Works
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Get started in minutes and see results immediately
+              Get started in minutes and see immediate SEO improvements for your e-commerce store
             </p>
           </div>
           
@@ -148,28 +153,28 @@ const Index = () => {
               {
                 step: 1,
                 title: "Connect Your WooCommerce Store",
-                description: "Enter your WooCommerce API details to securely connect your store in under 2 minutes.",
+                description: "Enter your WooCommerce API credentials to securely connect your store in under 2 minutes for seamless SEO optimization.",
                 icon: <Shield className="h-8 w-8" />,
                 color: "from-seo-primary to-seo-secondary"
               },
               {
                 step: 2,
-                title: "Select Products to Optimize",
-                description: "Browse your product catalog and choose which items need SEO enhancement.",
+                title: "Select Products for SEO Enhancement",
+                description: "Browse your product catalog and choose which items need professional SEO content optimization and meta tag improvements.",
                 icon: <Tag className="h-8 w-8" />,
                 color: "from-seo-accent to-seo-primary"
               },
               {
                 step: 3,
-                title: "Generate AI Content",
-                description: "Our AI creates optimized descriptions, meta titles, and focus keywords based on your products.",
+                title: "Generate AI SEO Content",
+                description: "Our advanced AI creates RankMath-optimized descriptions, meta titles, focus keywords, and alt text based on your products.",
                 icon: <Zap className="h-8 w-8" />,
                 color: "from-seo-secondary to-seo-accent"
               },
               {
                 step: 4,
-                title: "Push to Your Store",
-                description: "Apply changes directly to your WooCommerce store.",
+                title: "Push SEO Content to Store",
+                description: "Apply all SEO-optimized changes directly to your WooCommerce store and watch your search rankings improve.",
                 icon: <TrendingUp className="h-8 w-8" />,
                 color: "from-seo-orange to-seo-pink"
               }
@@ -193,15 +198,15 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Why Choose Us Section */}
+      {/* Why Choose Us Section - SEO Enhanced */}
       <section className="py-24 bg-white relative">
         <div className="container mx-auto px-4">
           <div className="text-center mb-20 animate-fade-in-up">
             <h2 className="text-4xl md:text-5xl font-display font-bold mb-6 bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
-              Why Choose Us
+              Why Choose Our WooCommerce SEO Content Generator
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Experience the difference with our AI-powered SEO solution
+              Experience the difference with our professional AI-powered SEO optimization solution for e-commerce success
             </p>
           </div>
 
@@ -209,38 +214,38 @@ const Index = () => {
             {[
               {
                 icon: <Sparkles className="h-8 w-8" />,
-                title: "Simple, Transparent Pricing",
-                description: "Say goodbye to confusing subscriptions and surprise bills. Our flexible credit system means you only pay for what you use — and each credit includes the full cost of AI generation. No API keys, no hidden fees.",
+                title: "Simple, Transparent SEO Pricing",
+                description: "Say goodbye to confusing subscriptions and surprise bills. Our flexible credit system means you only pay for SEO content you generate — and each credit includes the full cost of AI optimization. No API keys, no hidden fees.",
                 gradient: "from-seo-primary to-seo-secondary"
               },
               {
                 icon: <TrendingUp className="h-8 w-8" />,
-                title: "Unmatched Value Per Dollar",
-                description: "With credits starting as low as $0.07 and no expiration dates, we offer industry-leading affordability without compromising quality. Our pricing beats subscription-based competitors and BYO-API plugins, making us the best value in the market.",
+                title: "Best Value SEO Content Generator",
+                description: "With credits starting as low as $0.07 and no expiration dates, we offer industry-leading affordability for WooCommerce SEO optimization without compromising quality. Our pricing beats subscription-based competitors and BYO-API plugins.",
                 gradient: "from-seo-accent to-seo-primary"
               },
               {
                 icon: <FileText className="h-8 w-8" />,
-                title: "Fully Customizable Prompts",
-                description: "Tweak and control the AI's behavior without technical barriers. Whether you want a formal tone, specific keywords, or brand-aligned messaging, our editable prompt system puts you in charge.",
+                title: "Fully Customizable SEO Prompts",
+                description: "Tweak and control the AI's SEO behavior without technical barriers. Whether you want formal tone, specific keywords, or brand-aligned messaging, our editable prompt system puts you in charge of content optimization.",
                 gradient: "from-seo-secondary to-seo-accent"
               },
               {
                 icon: <Shield className="h-8 w-8" />,
-                title: "Works Outside WordPress",
-                description: "Unlike plugin-only solutions, we're a dedicated SaaS built for WooCommerce — giving you a clean, fast interface without cluttering your WordPress dashboard. Easily connect multiple stores and manage everything from one place.",
+                title: "Works Outside WordPress Dashboard",
+                description: "Unlike plugin-only solutions, we're a dedicated SaaS built specifically for WooCommerce SEO — giving you a clean, fast interface without cluttering your WordPress dashboard. Easily connect multiple stores and manage everything from one place.",
                 gradient: "from-seo-primary to-seo-secondary"
               },
               {
                 icon: <Zap className="h-8 w-8" />,
-                title: "Instant Integration",
-                description: "Connect your WooCommerce store in minutes. No technical expertise required - we handle all the complex setup.",
+                title: "Instant WooCommerce Integration",
+                description: "Connect your WooCommerce store in minutes for immediate SEO benefits. No technical expertise required - we handle all the complex setup for search engine optimization.",
                 gradient: "from-seo-accent to-seo-primary"
               },
               {
                 icon: <CheckCircle className="h-8 w-8" />,
-                title: "Quality Guaranteed",
-                description: "Every piece of content is optimized for RankMath with guaranteed 90+ SEO scores. Your success is our priority.",
+                title: "90+ RankMath SEO Score Guaranteed",
+                description: "Every piece of content is professionally optimized for RankMath with guaranteed 90+ SEO scores. Your search engine success is our priority with proven results.",
                 gradient: "from-seo-secondary to-seo-accent"
               }
             ].map((feature, index) => (
@@ -265,71 +270,71 @@ const Index = () => {
       {/* Testimonials */}
       <Testimonials />
 
-      {/* Pricing */}
+      {/* SEO Optimized Pricing */}
       <section className="py-24 bg-white relative">
         <div className="container mx-auto px-4">
           <div className="text-center mb-20 animate-fade-in-up">
             <div className="flex items-center justify-center gap-4 mb-6">
               <h2 className="text-4xl md:text-5xl font-display font-bold bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
-                Simple, Credit-Based Pricing
+                Affordable WooCommerce SEO Plans
               </h2>
               <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold py-2 px-6 rounded-full shadow-lg">
-                LIMITED OFFER for the first 100 users
+                LIMITED OFFER for early adopters
               </div>
             </div>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Pay only for what you use. Each credit generates content for one product with no monthly commitments.
+              Pay only for SEO content you generate. Each credit creates optimized content for one product with no monthly commitments or hidden fees.
             </p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {[
               {
-                name: "Starter",
+                name: "SEO Starter",
                 price: "$5",
                 credits: "50",
-                description: "Perfect for small stores getting started with SEO.",
+                description: "Perfect for small WooCommerce stores starting their SEO journey.",
                 features: [
-                  "AI Content Generation",
-                  "• Long & Short Descriptions",
-                  "• Meta Title & Meta Description",
-                  "• Image Alt Text",
-                  "• Focus keywords",
-                  "Custom Prompt Editing",
+                  "AI SEO Content Generation",
+                  "• Long & Short Product Descriptions",
+                  "• SEO Meta Title & Meta Description",
+                  "• Optimized Image Alt Text",
+                  "• Focus Keywords Extraction",
+                  "Custom SEO Prompt Editing",
                   "Multi-store Support",
                   "WooCommerce Store Integration",
                   "Real-time Preview Before Applying",
-                  "Basic Support (Email)"
+                  "Basic SEO Support (Email)"
                 ],
                 popular: false,
                 gradient: "from-seo-primary/10 to-seo-secondary/10",
                 border: "border-seo-primary/20"
               },
               {
-                name: "Growth",
+                name: "SEO Growth",
                 price: "$20", 
                 credits: "500",
-                description: "For growing stores with more products to optimize.",
+                description: "For growing WooCommerce stores with more products to optimize.",
                 features: [
-                  "Everything in Starter, plus:",
-                  "Multi-store Support",
-                  "Priority Support (Live Chat)",
-                  "Bulk Generation Tools",
-                  "Early Access to New Features"
+                  "Everything in SEO Starter, plus:",
+                  "Multi-store SEO Management",
+                  "Priority SEO Support (Live Chat)",
+                  "Bulk SEO Generation Tools",
+                  "Early Access to New SEO Features"
                 ],
                 popular: true,
                 gradient: "from-seo-accent/10 to-seo-primary/10",
                 border: "border-seo-accent"
               },
               {
-                name: "Scale",
+                name: "SEO Scale",
                 price: "$35",
                 credits: "1000", 
-                description: "For large stores with extensive product catalogs.",
+                description: "For large WooCommerce stores with extensive product catalogs.",
                 features: [
-                  "Everything in Growth, plus:",
-                  "Multi-store Support",
-                  "Priority Support (Live Chat)"
+                  "Everything in SEO Growth, plus:",
+                  "Advanced Multi-store SEO Support",
+                  "Priority SEO Optimization Support"
                 ],
                 popular: false,
                 gradient: "from-seo-secondary/10 to-seo-accent/10",
@@ -343,7 +348,7 @@ const Index = () => {
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                     <div className="bg-gradient-to-r from-seo-accent to-seo-primary text-white text-sm font-bold py-2 px-6 rounded-full shadow-lg">
-                      MOST POPULAR
+                      MOST POPULAR SEO PLAN
                     </div>
                   </div>
                 )}
@@ -356,8 +361,7 @@ const Index = () => {
                   <div className="inline-flex items-center bg-white/50 rounded-full px-4 py-2 mb-6">
                     <Clock className="h-4 w-4 mr-2 text-seo-primary" />
                     <span className="font-semibold text-seo-primary">
-                      {plan.credits} credits
-                      {plan.name === "Scale" && <span className="text-seo-accent ml-1"></span>}
+                      {plan.credits} SEO credits
                     </span>
                   </div>
                 </div>
@@ -390,7 +394,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* SEO Optimized Footer */}
       <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-16">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center mb-12">
@@ -403,13 +407,13 @@ const Index = () => {
               </span>
             </div>
             <div className="flex gap-8 text-center md:text-left">
-              <Link to="/" className="hover:text-seo-accent transition-colors font-medium">Home</Link>
-              <Link to="/register" className="hover:text-seo-accent transition-colors font-medium">Sign Up</Link>
-              <Link to="/login" className="hover:text-seo-accent transition-colors font-medium">Login</Link>
+              <Link to="/" className="hover:text-seo-accent transition-colors font-medium">WooCommerce SEO Home</Link>
+              <Link to="/register" className="hover:text-seo-accent transition-colors font-medium">Start SEO Optimization</Link>
+              <Link to="/login" className="hover:text-seo-accent transition-colors font-medium">Login to Dashboard</Link>
             </div>
           </div>
           <div className="border-t border-gray-700 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} wooSEO. All rights reserved. Transform your WooCommerce SEO today.</p>
+            <p>&copy; {new Date().getFullYear()} wooSEO - Professional WooCommerce SEO Content Generator. All rights reserved. Transform your e-commerce SEO today.</p>
           </div>
         </div>
       </footer>
@@ -418,4 +422,3 @@ const Index = () => {
 };
 
 export default Index;
-// If there is a pricing/plans section, update the credit values and plan names to Starter: 50, Growth: 500, Scale: 1000. If not present, no changes needed.
