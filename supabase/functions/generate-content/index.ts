@@ -75,7 +75,7 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert eCommerce SEO content writer. Follow the user instructions precisely and return content in the exact format requested.'
+              content: 'You are an expert eCommerce SEO content writer. Follow the user instructions precisely and return content in the exact format requested. ALWAYS include outbound links to external resources and power words in titles.'
             },
             {
               role: 'user',
@@ -138,14 +138,14 @@ function parseOpenAIResponse(response: any): any {
 }
 
 function generatePermalink(title: string): string {
-  // Generate permalink from title, max 50 characters
+  // Generate permalink from title, max 40 characters for RankMath optimization
   const permalink = title
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
     .replace(/\s+/g, '-') // Replace spaces with hyphens
     .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
     .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
-    .substring(0, 50) // Limit to 50 characters
+    .substring(0, 40) // Limit to 40 characters for better SEO
     .replace(/-$/, ''); // Remove trailing hyphen if present after truncation
   
   return permalink;
@@ -159,6 +159,7 @@ function parseAIResponse(text: string): any {
   const metaDescMatch = text.match(/META DESCRIPTION:\s*([\s\S]*?)(?=FOCUS KEYWORDS:|$)/);
   const focusKeywordsMatch = text.match(/FOCUS KEYWORDS:\s*([\s\S]*?)(?=IMAGE ALT TEXT:|PERMALINK:|$)/);
   const altTextMatch = text.match(/IMAGE ALT TEXT:\s*([\s\S]*?)(?=PERMALINK:|$)/);
+  const permalinkMatch = text.match(/PERMALINK:\s*([\s\S]*?)$/);
   
   // Extract focus keywords and ensure we have exactly 3
   let focusKeywords = '';
@@ -184,20 +185,41 @@ function parseAIResponse(text: string): any {
   
   // Extract meta title and generate permalink
   const metaTitle = metaTitleMatch ? metaTitleMatch[1].trim() : '';
-  const permalink = generatePermalink(metaTitle);
+  
+  // Use explicit permalink if provided, otherwise generate from meta title
+  let permalink = '';
+  if (permalinkMatch) {
+    permalink = permalinkMatch[1].trim();
+  } else {
+    permalink = generatePermalink(metaTitle);
+  }
+  
+  // Ensure permalink is within 40 characters
+  if (permalink.length > 40) {
+    permalink = permalink.substring(0, 40).replace(/-$/, '');
+  }
   
   console.log('Final parsed focus keywords (exactly 3):', focusKeywords);
   console.log('Final parsed alt text:', altText);
-  console.log('Generated permalink from title:', permalink);
+  console.log('Generated/extracted permalink (40 chars max):', permalink);
+  
+  // Verify that long description contains outbound links
+  const longDescription = longDescMatch ? longDescMatch[1].trim() : '';
+  const outboundLinksCount = (longDescription.match(/target="_blank"/g) || []).length;
+  console.log('Outbound links found in content:', outboundLinksCount);
+  
+  if (outboundLinksCount < 3) {
+    console.warn('Less than 3 outbound links found. RankMath may flag this as an issue.');
+  }
   
   return {
     short_description: shortDescMatch ? shortDescMatch[1].trim() : '',
-    long_description: longDescMatch ? longDescMatch[1].trim() : '',
+    long_description: longDescription,
     meta_title: metaTitle,
     meta_description: metaDescMatch ? metaDescMatch[1].trim() : '',
     alt_text: altText,
     focus_keywords: focusKeywords,
-    permalink: permalink, // Add the generated permalink
+    permalink: permalink, // Include the permalink in the response
     product_id: 0,
     user_id: '',
   };
