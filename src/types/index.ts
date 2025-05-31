@@ -116,6 +116,13 @@ export interface SeoContent {
   created_at?: string;
 }
 
+export interface StoreUsage {
+  store_id: string;
+  store_name: string;
+  credits_used: number;
+  products_generated: number;
+}
+
 export interface WooCommerceCredentials {
   id?: string;
   store_name: string;
