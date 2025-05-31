@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Wand2, Save, Loader2, AlertCircle } from 'lucide-react';
 import EditableSeoContent from './EditableSeoContent';
 import ModelSelector, { AIModel, modelConfig } from './ModelSelector';
+import SeoOptionsChecklist, { SeoOptions } from './SeoOptionsChecklist';
 
 interface SeoContentGeneratorProps {
   products: Product[];
@@ -31,9 +32,87 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
   const [generatedContent, setGeneratedContent] = useState<{ [productId: number]: SeoContent }>({});
   const [error, setError] = useState<string | null>(null);
   const [updatedProducts, setUpdatedProducts] = useState<Set<number>>(new Set());
+  
+  // SEO options state with all options enabled by default (for RankMath compliance)
+  const [seoOptions, setSeoOptions] = useState<SeoOptions>({
+    includeInternalLinks: true,
+    includeOutboundLinks: true,
+    includePowerWords: true,
+    includeSentimentWords: true,
+    includePermalink: true,
+    includeAltText: true,
+    includeFocusKeywords: true,
+    includeMetaDescription: true,
+  });
 
   const totalCreditsRequired = products.length * modelConfig[selectedModel].credits;
   const canAffordGeneration = credits >= totalCreditsRequired;
+
+  // Function to modify the prompt based on selected options
+  const getModifiedPrompt = (basePrompt: string): string => {
+    let modifiedPrompt = basePrompt;
+
+    // Remove or modify sections based on unchecked options
+    if (!seoOptions.includeOutboundLinks) {
+      modifiedPrompt = modifiedPrompt.replace(/OUTBOUND LINKS STRATEGY[\s\S]*?(?=INTERNAL LINKS STRATEGY|FOCUS KEYWORDS|$)/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/- MANDATORY: Include 3-5 OUTBOUND LINKS[\s\S]*?(?=- Content should be|$)/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/OUTBOUND LINKING EXAMPLES[\s\S]*?(?=Output MUST|$)/g, '');
+    }
+
+    if (!seoOptions.includeInternalLinks) {
+      modifiedPrompt = modifiedPrompt.replace(/INTERNAL LINKS STRATEGY[\s\S]*?(?=FOCUS KEYWORDS|OUTBOUND LINKS|$)/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/- Include 3-5 internal product links[\s\S]*?(?=- Include 2-3 internal category|$)/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/- Include 2-3 internal category links[\s\S]*?(?=- MANDATORY|$)/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/INTERNAL LINKING EXAMPLES[\s\S]*?(?=OUTBOUND LINKING|$)/g, '');
+    }
+
+    if (!seoOptions.includePowerWords) {
+      modifiedPrompt = modifiedPrompt.replace(/MUST include a POWER WORD \([^)]+\)/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/AND a SENTIMENT WORD/g, 'MUST include a SENTIMENT WORD');
+    }
+
+    if (!seoOptions.includeSentimentWords) {
+      modifiedPrompt = modifiedPrompt.replace(/AND a SENTIMENT WORD \([^)]+\)/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/MUST include a POWER WORD \([^)]+\) AND/g, 'MUST include a POWER WORD');
+    }
+
+    if (!seoOptions.includePermalink) {
+      modifiedPrompt = modifiedPrompt.replace(/PERMALINK:\s*/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/- SEO Permalink:[\s\S]*?(?=- Meta Description|$)/g, '');
+    }
+
+    if (!seoOptions.includeAltText) {
+      modifiedPrompt = modifiedPrompt.replace(/IMAGE ALT TEXT:\s*/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/- Image Alt Text:[\s\S]*?(?=Output MUST|$)/g, '');
+    }
+
+    if (!seoOptions.includeFocusKeywords) {
+      modifiedPrompt = modifiedPrompt.replace(/FOCUS KEYWORDS:\s*/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/- Focus Keywords:[\s\S]*?(?=- Image Alt Text|$)/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/FOCUS KEYWORDS INSTRUCTION[\s\S]*?(?=Content Requirements|$)/g, '');
+    }
+
+    if (!seoOptions.includeMetaDescription) {
+      modifiedPrompt = modifiedPrompt.replace(/META DESCRIPTION:\s*/g, '');
+      modifiedPrompt = modifiedPrompt.replace(/- Meta Description:[\s\S]*?(?=- Focus Keywords|$)/g, '');
+    }
+
+    // Update the output sections list based on selected options
+    const outputSections = [];
+    outputSections.push('LONG DESCRIPTION:');
+    outputSections.push('SHORT DESCRIPTION:');
+    outputSections.push('META TITLE:');
+    
+    if (seoOptions.includeMetaDescription) outputSections.push('META DESCRIPTION:');
+    if (seoOptions.includeFocusKeywords) outputSections.push('FOCUS KEYWORDS:');
+    if (seoOptions.includeAltText) outputSections.push('IMAGE ALT TEXT:');
+    if (seoOptions.includePermalink) outputSections.push('PERMALINK:');
+
+    const outputSectionText = `Output MUST include these EXACT section headers in your response:\n${outputSections.join('\n')}`;
+    modifiedPrompt = modifiedPrompt.replace(/Output MUST include these EXACT section headers[\s\S]*?(?=Do not include|$)/g, outputSectionText + '\n\n');
+
+    return modifiedPrompt;
+  };
 
   const handleGenerateContent = async () => {
     setError(null);
@@ -66,12 +145,15 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
     let successCount = 0;
 
     try {
+      // Get the modified prompt based on selected options
+      const modifiedPrompt = getModifiedPrompt(prompt);
+      
       for (const product of products) {
         console.log(`Generating content for product: ${product.name} using ${selectedModel}`);
         toast.info(`Generating content for ${product.name} with ${modelConfig[selectedModel].name}...`);
 
         try {
-          const content = await generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id);
+          const content = await generateSeoContent(product, modifiedPrompt, user.id, selectedModel, activeStore.id);
           // Add store_id to the content
           content.store_id = activeStore.id;
           newContent[product.id] = content;
@@ -245,6 +327,11 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
                 )}
               </div>
             </div>
+
+            <SeoOptionsChecklist
+              options={seoOptions}
+              onOptionsChange={setSeoOptions}
+            />
             
             <div className="space-y-2">
               <label className="text-sm font-medium">AI Prompt Template</label>
