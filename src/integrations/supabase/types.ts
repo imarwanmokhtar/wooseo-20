@@ -9,6 +9,171 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bulk_generation_jobs: {
+        Row: {
+          batch_size: number | null
+          completed_at: string | null
+          completed_products: number | null
+          created_at: string | null
+          error_message: string | null
+          failed_products: number | null
+          id: string
+          model: string
+          product_ids: number[]
+          prompt_template: string
+          started_at: string | null
+          status: string
+          store_id: string
+          total_products: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          batch_size?: number | null
+          completed_at?: string | null
+          completed_products?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          failed_products?: number | null
+          id?: string
+          model: string
+          product_ids: number[]
+          prompt_template: string
+          started_at?: string | null
+          status?: string
+          store_id: string
+          total_products: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          batch_size?: number | null
+          completed_at?: string | null
+          completed_products?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          failed_products?: number | null
+          id?: string
+          model?: string
+          product_ids?: number[]
+          prompt_template?: string
+          started_at?: string | null
+          status?: string
+          store_id?: string
+          total_products?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_generation_jobs_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "woocommerce_credentials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bulk_generation_results: {
+        Row: {
+          content: Json | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          job_id: string
+          max_retries: number | null
+          product_id: number
+          product_name: string | null
+          retry_count: number | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_id: string
+          max_retries?: number | null
+          product_id: number
+          product_name?: string | null
+          retry_count?: number | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          max_retries?: number | null
+          product_id?: number
+          product_name?: string | null
+          retry_count?: number | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_generation_results_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_generation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generation_queue: {
+        Row: {
+          batch_number: number
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          job_id: string
+          priority: number | null
+          product_ids: number[]
+          retry_count: number | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          batch_number: number
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_id: string
+          priority?: number | null
+          product_ids: number[]
+          retry_count?: number | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          batch_number?: number
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          priority?: number | null
+          product_ids?: number[]
+          retry_count?: number | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_queue_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_generation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prompt_templates: {
         Row: {
           created_at: string

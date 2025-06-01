@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
@@ -12,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, TestTube, CheckCircle, AlertCircle, Store } from 'lucide-react';
+import { Settings as SettingsIcon, Save, TestTube, CheckCircle, AlertCircle, Store, Star } from 'lucide-react';
 import { WooCommerceCredentials } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -79,6 +78,7 @@ const Settings = () => {
     version: 'wc/v3',
   });
   const [promptTemplate, setPromptTemplate] = useState(UPDATED_DEFAULT_PROMPT);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -118,10 +118,14 @@ const Settings = () => {
           setConnectionStatus('unknown');
         }
 
-        // Load prompt templates (use the first one or default)
-        const templates = await getPromptTemplates(user.id);
-        if (templates && templates.length > 0) {
-          setPromptTemplate(templates[0].template);
+        // Load prompt templates
+        const templatesData = await getPromptTemplates(user.id);
+        setTemplates(templatesData);
+        
+        // Set the default template or first one
+        if (templatesData && templatesData.length > 0) {
+          const defaultTemplate = templatesData.find(t => t.is_default);
+          setPromptTemplate(defaultTemplate ? defaultTemplate.template : templatesData[0].template);
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -133,6 +137,41 @@ const Settings = () => {
 
     loadSettings();
   }, [user?.id, activeStore]);
+
+  const handleMakeDefault = async (templateId: string) => {
+    if (!user?.id) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    try {
+      // First, remove default flag from all templates
+      await supabase
+        .from('prompt_templates')
+        .update({ is_default: false })
+        .eq('user_id', user.id);
+
+      // Then set the selected template as default
+      const { error } = await supabase
+        .from('prompt_templates')
+        .update({ is_default: true })
+        .eq('id', templateId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh templates
+      const updatedTemplates = await getPromptTemplates(user.id);
+      setTemplates(updatedTemplates);
+      
+      toast.success('Template set as default successfully!');
+    } catch (error) {
+      console.error('Error setting default template:', error);
+      toast.error('Failed to set default template');
+    }
+  };
 
   const handleTestConnection = async () => {
     if (!credentials.url || !credentials.consumer_key || !credentials.consumer_secret) {
@@ -377,6 +416,57 @@ const Settings = () => {
                   Please go to the Dashboard to add or select a store before configuring settings.
                 </AlertDescription>
               </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Saved Templates Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Saved Templates</CardTitle>
+            <CardDescription>
+              Manage your saved prompt templates and set default template
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {templates.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                No templates saved yet. Create templates in the Prompt Templates page.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {templates.map((template) => (
+                  <div key={template.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{template.name}</span>
+                        {template.is_default && (
+                          <Badge variant="default" className="flex items-center gap-1">
+                            <Star className="h-3 w-3" />
+                            Default
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Created: {new Date(template.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!template.is_default && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleMakeDefault(template.id)}
+                          className="flex items-center gap-1"
+                        >
+                          <Star className="h-4 w-4" />
+                          Make Default
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

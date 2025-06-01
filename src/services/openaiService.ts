@@ -36,6 +36,20 @@ export async function callOpenAIAPI(prompt: string, model: 'gpt-3.5-turbo' | 'gp
   return data;
 }
 
+function generatePermalink(title: string): string {
+  // Generate permalink from title, max 40 characters for RankMath optimization
+  const permalink = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+    .substring(0, 40) // Limit to 40 characters for better SEO
+    .replace(/-$/, ''); // Remove trailing hyphen if present after truncation
+  
+  return permalink;
+}
+
 export function parseOpenAIResponse(response: any): SeoContent {
   try {
     const text = response.choices[0].message.content;
@@ -48,6 +62,7 @@ export function parseOpenAIResponse(response: any): SeoContent {
     const metaDescMatch = text.match(/META DESCRIPTION:\s*([\s\S]*?)(?=FOCUS KEYWORDS:|$)/);
     const focusKeywordsMatch = text.match(/FOCUS KEYWORDS:\s*([\s\S]*?)(?=IMAGE ALT TEXT:|PERMALINK:|$)/);
     const altTextMatch = text.match(/IMAGE ALT TEXT:\s*([\s\S]*?)(?=PERMALINK:|$)/);
+    const permalinkMatch = text.match(/PERMALINK:\s*([\s\S]*?)$/);
     
     // Extract focus keywords and ensure we have exactly 3
     let focusKeywords = '';
@@ -71,17 +86,36 @@ export function parseOpenAIResponse(response: any): SeoContent {
     // Extract alt text
     const altText = altTextMatch ? altTextMatch[1].trim() : '';
     
+    // Extract meta title and generate permalink
+    const metaTitle = metaTitleMatch ? metaTitleMatch[1].trim() : '';
+    
+    // Use explicit permalink if provided, otherwise generate from meta title
+    let permalink = '';
+    if (permalinkMatch) {
+      permalink = permalinkMatch[1].trim();
+    } else {
+      permalink = generatePermalink(metaTitle);
+    }
+    
+    // Ensure permalink is within 40 characters
+    if (permalink.length > 40) {
+      permalink = permalink.substring(0, 40).replace(/-$/, '');
+    }
+    
     console.log('Final parsed focus keywords (exactly 3):', focusKeywords);
     console.log('Final parsed alt text:', altText);
+    console.log('Generated/extracted permalink (40 chars max):', permalink);
     
     return {
       short_description: shortDescMatch ? shortDescMatch[1].trim() : '',
       long_description: longDescMatch ? longDescMatch[1].trim() : '',
-      meta_title: metaTitleMatch ? metaTitleMatch[1].trim() : '',
+      meta_title: metaTitle,
       meta_description: metaDescMatch ? metaDescMatch[1].trim() : '',
       alt_text: altText,
       focus_keywords: focusKeywords,
+      permalink: permalink,
       product_id: 0,
+      product_name: '', // This will be set by the calling function
       user_id: '',
     };
   } catch (error) {

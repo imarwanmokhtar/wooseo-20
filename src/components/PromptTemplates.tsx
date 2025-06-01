@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { savePromptTemplate, getPromptTemplates, DEFAULT_PROMPT_TEMPLATE } from '@/services/aiGenerationService';
+import { savePromptTemplate, getPromptTemplates, deletePromptTemplate, DEFAULT_PROMPT_TEMPLATE } from '@/services/aiGenerationService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Check, Copy, FileText, PlusCircle, Trash } from 'lucide-react';
@@ -73,27 +74,19 @@ const PromptTemplates = () => {
     }
 
     try {
-      // Optimistically update the UI
-      setTemplates(templates.filter(template => template.id !== templateId));
-
-      // Delete the template from the database
-      // await deletePromptTemplate(templateId); // Assuming you have a deletePromptTemplate function
-      // toast.success('Template deleted successfully!');
-      
-      // For now, just log the action since we don't have a delete function
-      console.log('Template deleted:', templateId);
+      await deletePromptTemplate(templateId);
+      toast.success('Template deleted successfully!');
+      const updatedTemplates = await getPromptTemplates(user.id);
+      setTemplates(updatedTemplates);
     } catch (error) {
       console.error('Error deleting prompt template:', error);
       toast.error('Failed to delete template.');
-      // If there was an error, revert the UI update
-      // const updatedTemplates = await getPromptTemplates(user.id);
-      // setTemplates(updatedTemplates);
     }
   };
 
-  const handleCopyToClipboard = (text: string) => {
+  const handleCopyToClipboard = (text: string, templateId: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedId(text);
+    setCopiedId(templateId);
     toast.success('Template copied to clipboard!');
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -184,60 +177,63 @@ const PromptTemplates = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            {templates.map(template => (
-              <Card key={template.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-md">{template.name}</CardTitle>
-                  <CardDescription className="text-xs">Created {new Date(template.created_at).toLocaleDateString()}</CardDescription>
-                </CardHeader>
-                <CardContent className="py-2">
-                  <div className="bg-gray-50 rounded p-3 font-mono text-xs overflow-auto max-h-[150px]">
-                    {template.content.split('\n').map((line, i) => (
-                      <div key={i} className="whitespace-pre-wrap mb-1">
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-                <CardFooter className="pt-2">
-                  <div className="flex justify-between w-full">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => handleDeleteTemplate(template.id)}
-                    >
-                      <Trash className="h-4 w-4 mr-1" /> Delete
-                    </Button>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setTemplateName(template.name);
-                          setPromptContent(template.content);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                      >
-                        Edit
-                      </Button>
+            {templates.map(template => {
+              const templateContent = template.template || '';
+              return (
+                <Card key={template.id}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-md">{template.name}</CardTitle>
+                    <CardDescription className="text-xs">Created {new Date(template.created_at).toLocaleDateString()}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="py-2">
+                    <div className="bg-gray-50 rounded p-3 font-mono text-xs overflow-auto max-h-[150px]">
+                      {templateContent.split('\n').map((line, i) => (
+                        <div key={i} className="whitespace-pre-wrap mb-1">
+                          {line}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="pt-2">
+                    <div className="flex justify-between w-full">
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="flex items-center" 
-                        onClick={() => handleCopyToClipboard(template.content)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteTemplate(template.id)}
                       >
-                        {copiedId === template.id ? (
-                          <><Check className="h-4 w-4 mr-1" /> Copied</>
-                        ) : (
-                          <><Copy className="h-4 w-4 mr-1" /> Copy</>
-                        )}
+                        <Trash className="h-4 w-4 mr-1" /> Delete
                       </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setTemplateName(template.name);
+                            setPromptContent(templateContent);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="flex items-center" 
+                          onClick={() => handleCopyToClipboard(templateContent, template.id)}
+                        >
+                          {copiedId === template.id ? (
+                            <><Check className="h-4 w-4 mr-1" /> Copied</>
+                          ) : (
+                            <><Copy className="h-4 w-4 mr-1" /> Copy</>
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
+                  </CardFooter>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

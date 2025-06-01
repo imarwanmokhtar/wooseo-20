@@ -60,7 +60,11 @@ serve(async (req) => {
       console.log("Creating new customer");
     }
 
-    // Create checkout session
+    // Get the origin and ensure it's properly formatted
+    const origin = req.headers.get("origin") || "http://localhost:8080";
+    console.log("Origin for redirect URLs:", origin);
+
+    // Create checkout session with corrected URLs
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : userData.user.email,
@@ -78,8 +82,8 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/dashboard`,
+      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/dashboard`,
       metadata: {
         user_id: userData.user.id,
         credits: credits.toString(),
@@ -87,6 +91,7 @@ serve(async (req) => {
     });
 
     console.log("Checkout session created:", session.id);
+    console.log("Success URL set to:", `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -2,37 +2,30 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
-import { getWooCommerceCredentials, fetchCategories, fetchProducts, fetchBrands } from '@/services/wooCommerceApi';
-import { Product, Category, Brand } from '@/types';
+import { getWooCommerceCredentials, fetchCategories, fetchProducts } from '@/services/wooCommerceApi';
+import { Product, Category } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
 import { toast } from 'sonner';
 import ProductCard from '@/components/ProductCard';
 import Pagination from '@/components/Pagination';
-import { AlertCircle, SearchIcon } from 'lucide-react';
+import { AlertCircle, SearchIcon, X, Zap } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import SeoContentGenerator from './SeoContentGenerator';
+import BulkContentGenerator from './BulkContentGenerator';
 
 const ProductSelector = () => {
   const { user } = useAuth();
   const { activeStore } = useMultiStore();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [loadingFilters, setLoadingFilters] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [page, setPage] = useState<number>(1);
@@ -40,6 +33,7 @@ const ProductSelector = () => {
   const [totalProducts, setTotalProducts] = useState<number>(0);
   const [perPage, setPerPage] = useState<number>(10);
   const [showGenerator, setShowGenerator] = useState<boolean>(false);
+  const [showBulkGenerator, setShowBulkGenerator] = useState<boolean>(false);
   
   useEffect(() => {
     if (user && activeStore?.id) {
@@ -49,9 +43,14 @@ const ProductSelector = () => {
 
   useEffect(() => {
     if (user && activeStore?.id) {
-      loadProducts();
+      const timeoutId = setTimeout(() => {
+        setPage(1);
+        loadProducts();
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [user, activeStore, selectedCategory, selectedBrand, page, perPage]);
+  }, [user, activeStore, selectedCategories, searchTerm, page, perPage]);
 
   const loadFilters = async () => {
     try {
@@ -60,6 +59,7 @@ const ProductSelector = () => {
         return;
       }
       
+      setLoadingFilters(true);
       console.log('Loading filters for store:', activeStore.store_name, 'with ID:', activeStore.id);
       const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
       if (!credentials) {
@@ -67,18 +67,18 @@ const ProductSelector = () => {
         return;
       }
 
-      console.log('Credentials found, loading categories and brands');
-      const [categoriesData, brandsData] = await Promise.all([
-        fetchCategories(credentials),
-        fetchBrands(credentials)
-      ]);
+      console.log('Credentials found, loading categories');
+      const categoriesData = await fetchCategories(credentials);
+
+      console.log('Categories loaded:', categoriesData.length);
 
       setCategories(categoriesData);
-      setBrands(brandsData);
       setError(null);
     } catch (error) {
       console.error('Error loading filters:', error);
-      setError("Failed to load categories and brands. Please try refreshing the page.");
+      setError("Failed to load categories. Please try refreshing the page.");
+    } finally {
+      setLoadingFilters(false);
     }
   };
 
@@ -99,16 +99,24 @@ const ProductSelector = () => {
         return;
       }
 
-      console.log('Credentials found, fetching products');
-      const category = selectedCategory !== 'all' ? parseInt(selectedCategory, 10) : undefined;
-      const brand = selectedBrand !== 'all' ? parseInt(selectedBrand, 10) : undefined;
-
-      const result = await fetchProducts(credentials, {
-        category,
-        brand,
-        search: searchTerm,
+      console.log('Fetching products with filters:', {
+        category: selectedCategories.length > 0 ? selectedCategories : undefined,
+        search: searchTerm || undefined,
         page,
         per_page: perPage
+      });
+
+      const result = await fetchProducts(credentials, {
+        category: selectedCategories.length > 0 ? selectedCategories : undefined,
+        search: searchTerm || undefined,
+        page,
+        per_page: perPage
+      });
+
+      console.log('Products fetch result:', {
+        count: result.products.length,
+        total: result.total,
+        totalPages: result.totalPages
       });
 
       setProducts(result.products);
@@ -123,10 +131,26 @@ const ProductSelector = () => {
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1); // Reset to first page on new search
-    loadProducts();
+  const handleCategorySelect = (categoryId: number, checked: boolean) => {
+    setSelectedCategories(prev => 
+      checked 
+        ? [...prev, categoryId]
+        : prev.filter(c => c !== categoryId)
+    );
+  };
+
+  const removeCategoryFilter = (categoryId: number) => {
+    setSelectedCategories(prev => prev.filter(c => c !== categoryId));
+  };
+
+  const clearAllFilters = () => {
+    setSelectedCategories([]);
+    setSearchTerm('');
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
   };
 
   const handleSelectProduct = (productId: number) => {
@@ -143,10 +167,8 @@ const ProductSelector = () => {
 
   const handleSelectAll = () => {
     if (selectedProducts.size === products.length) {
-      // Deselect all
       setSelectedProducts(new Set());
     } else {
-      // Select all
       setSelectedProducts(new Set(products.map(p => p.id)));
     }
   };
@@ -166,6 +188,26 @@ const ProductSelector = () => {
     setShowGenerator(true);
   };
 
+  const handleBulkGenerate = () => {
+    if (selectedProducts.size === 0) {
+      toast.error("Please select at least one product");
+      return;
+    }
+
+    if (selectedProducts.size < 3) {
+      toast.error("Bulk generation requires at least 3 products");
+      return;
+    }
+
+    if (!activeStore?.id) {
+      toast.error("No active store selected");
+      return;
+    }
+
+    console.log('Starting bulk generation for products:', Array.from(selectedProducts));
+    setShowBulkGenerator(true);
+  };
+
   const getSelectedProductsData = () => {
     return products.filter(product => selectedProducts.has(product.id));
   };
@@ -180,6 +222,18 @@ const ProductSelector = () => {
           </AlertDescription>
         </Alert>
       </div>
+    );
+  }
+
+  if (showBulkGenerator) {
+    return (
+      <BulkContentGenerator
+        selectedProducts={getSelectedProductsData()}
+        onBack={() => {
+          setShowBulkGenerator(false);
+          setSelectedProducts(new Set());
+        }}
+      />
     );
   }
 
@@ -221,79 +275,83 @@ const ProductSelector = () => {
       <div className="grid md:grid-cols-[300px_1fr] gap-6">
         {/* Filters sidebar */}
         <div className="space-y-6 bg-white p-4 rounded-lg border">
-          <h2 className="font-semibold text-lg">Filters</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-lg">Filters</h2>
+            {loadingFilters && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-seo-primary"></div>
+            )}
+          </div>
           
-          <form onSubmit={handleSearch}>
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="search">Search</Label>
-                <div className="relative">
-                  <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                  <Input
-                    id="search"
-                    placeholder="Search products..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="search">Search Products by Title</Label>
+              <div className="relative">
+                <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  id="search"
+                  placeholder="Search by product title..."
+                  value={searchTerm}
+                  onChange={handleSearchInputChange}
+                  className="pl-8"
+                />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select 
-                  value={selectedCategory} 
-                  onValueChange={(value) => {
-                    setSelectedCategory(value);
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id.toString()}>
-                        {category.name} ({category.count})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="brand">Brand</Label>
-                <Select 
-                  value={selectedBrand} 
-                  onValueChange={(value) => {
-                    setSelectedBrand(value);
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger id="brand">
-                    <SelectValue placeholder="All Brands" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Brands</SelectItem>
-                    {brands.map((brand) => (
-                      <SelectItem key={brand.id} value={brand.id.toString()}>
-                        {brand.name} ({brand.count})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? "Searching..." : "Apply Filters"}
-              </Button>
             </div>
-          </form>
+
+            <div className="space-y-2">
+              <Label>Categories</Label>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {categories.map((category) => (
+                  <div key={category.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`category-${category.id}`}
+                      checked={selectedCategories.includes(category.id)}
+                      onCheckedChange={(checked) => 
+                        handleCategorySelect(category.id, checked as boolean)
+                      }
+                    />
+                    <label 
+                      htmlFor={`category-${category.id}`} 
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {category.name} ({category.count})
+                    </label>
+                  </div>
+                ))}
+              </div>
+              
+              {selectedCategories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedCategories.map(categoryId => {
+                    const category = categories.find(c => c.id === categoryId);
+                    return category ? (
+                      <div key={categoryId} className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                        {category.name}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-1 h-4 w-4 p-0"
+                          onClick={() => removeCategoryFilter(categoryId)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+
+            {(selectedCategories.length > 0 || searchTerm) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearAllFilters}
+                className="w-full"
+              >
+                Clear All Filters
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Products list */}
@@ -304,6 +362,8 @@ const ProductSelector = () => {
                 <h2 className="font-semibold text-lg">Products</h2>
                 <p className="text-sm text-gray-600">
                   {totalProducts} products found in {activeStore.store_name}
+                  {searchTerm && ` matching "${searchTerm}"`}
+                  {selectedCategories.length > 0 && ` in ${selectedCategories.length} categories`}
                 </p>
               </div>
 
@@ -319,13 +379,29 @@ const ProductSelector = () => {
                   </label>
                 </div>
 
-                <Button 
-                  onClick={handleGenerateContent} 
-                  disabled={selectedProducts.size === 0}
-                  variant="default"
-                >
-                  Generate for {selectedProducts.size} {selectedProducts.size === 1 ? 'Product' : 'Products'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleGenerateContent} 
+                    disabled={selectedProducts.size === 0}
+                    variant="default"
+                    size="sm"
+                  >
+                    Generate for {selectedProducts.size}
+                  </Button>
+
+                  {selectedProducts.size >= 3 && (
+                    <Button 
+                      onClick={handleBulkGenerate} 
+                      disabled={selectedProducts.size < 3}
+                      variant="secondary"
+                      size="sm"
+                      className="bg-purple-100 text-purple-700 hover:bg-purple-200"
+                    >
+                      <Zap className="h-4 w-4 mr-1" />
+                      Bulk ({selectedProducts.size})
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -338,7 +414,12 @@ const ProductSelector = () => {
               </div>
             ) : products.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg border">
-                <p className="text-gray-500">No products found. Try changing your filters.</p>
+                <p className="text-gray-500">
+                  {searchTerm || selectedCategories.length > 0
+                    ? "No products found with the current filters. Try adjusting your search criteria."
+                    : "No products found."
+                  }
+                </p>
               </div>
             ) : (
               <>

@@ -1,4 +1,5 @@
-import { WooCommerceCredentials, Brand, Category, Product, SeoContent } from '@/types';
+
+import { WooCommerceCredentials, Category, Product, SeoContent } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
 export async function saveWooCommerceCredentials(
@@ -153,28 +154,6 @@ export async function testConnection(credentials: WooCommerceCredentials): Promi
   }
 }
 
-export async function fetchBrands(credentials: WooCommerceCredentials): Promise<Brand[]> {
-  try {
-    const url = `${credentials.url}/wp-json/${credentials.version}/products/attributes/1/terms?per_page=100`;
-    const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) throw new Error('Failed to fetch brands');
-    const data = await response.json();
-    return data as Brand[];
-  } catch (error) {
-    console.error('Error fetching brands:', error);
-    return [];
-  }
-}
-
 export async function fetchCategories(credentials: WooCommerceCredentials): Promise<Category[]> {
   try {
     const url = `${credentials.url}/wp-json/${credentials.version}/products/categories?per_page=100`;
@@ -200,8 +179,7 @@ export async function fetchCategories(credentials: WooCommerceCredentials): Prom
 export async function fetchProducts(
   credentials: WooCommerceCredentials,
   params: {
-    category?: number;
-    brand?: number;
+    category?: number[];
     search?: string;
     page?: number;
     per_page?: number;
@@ -209,16 +187,31 @@ export async function fetchProducts(
   }
 ): Promise<{ products: Product[]; total: number; totalPages: number }> {
   try {
+    console.log('Fetching products with params:', params);
+    
     let url = `${credentials.url}/wp-json/${credentials.version}/products?`;
     
-    if (params.category) url += `&category=${params.category}`;
-    if (params.brand) url += `&attribute=1&attribute_term=${params.brand}`;
-    if (params.search) url += `&search=${encodeURIComponent(params.search)}`;
+    // Handle multiple categories
+    if (params.category && params.category.length > 0) {
+      url += `&category=${params.category.join(',')}`;
+      console.log('Added category filter:', params.category);
+    }
+    
+    // Search only in product titles using the 'search' parameter with specific field targeting
+    if (params.search && params.search.trim()) {
+      // Use the search parameter which searches in title, content, and excerpt by default
+      // We'll need to rely on WooCommerce's search behavior or use a custom approach
+      url += `&search=${encodeURIComponent(params.search.trim())}`;
+      console.log('Added title search filter:', params.search.trim());
+    }
+    
     if (params.include && params.include.length > 0) {
       url += `&include=${params.include.join(',')}`;
     }
     
     url += `&page=${params.page || 1}&per_page=${params.per_page || 10}`;
+    
+    console.log('Final products URL:', url);
     
     const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
 
@@ -227,19 +220,35 @@ export async function fetchProducts(
       headers: {
         Authorization: `Basic ${auth}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
     });
 
-    if (!response.ok) throw new Error('Failed to fetch products');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Products fetch failed:', response.status, errorText);
+      throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
+    }
     
-    const products = await response.json();
+    let products = await response.json();
     const total = parseInt(response.headers.get('X-WP-Total') || '0', 10);
     const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '0', 10);
 
+    // If we have a search term, filter the results to only include products where the title contains the search term
+    if (params.search && params.search.trim()) {
+      const searchTerm = params.search.trim().toLowerCase();
+      products = products.filter((product: Product) => 
+        product.name.toLowerCase().includes(searchTerm)
+      );
+      console.log(`Filtered ${products.length} products by title containing "${searchTerm}"`);
+    }
+
+    console.log(`Fetched ${products.length} products, total: ${total}, pages: ${totalPages}`);
+
     return {
-      products,
-      total,
-      totalPages,
+      products: products,
+      total: products.length, // Update total to reflect filtered results
+      totalPages: Math.ceil(products.length / (params.per_page || 10)), // Recalculate pages
     };
   } catch (error) {
     console.error('Error fetching products:', error);
