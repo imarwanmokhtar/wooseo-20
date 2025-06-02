@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
@@ -11,11 +10,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import ProductCard from '@/components/ProductCard';
 import Pagination from '@/components/Pagination';
-import { AlertCircle, SearchIcon, X, Zap } from 'lucide-react';
+import { AlertCircle, SearchIcon, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import SeoContentGenerator from './SeoContentGenerator';
-import BulkContentGenerator from './BulkContentGenerator';
 
 const ProductSelector = () => {
   const { user } = useAuth();
@@ -33,7 +31,6 @@ const ProductSelector = () => {
   const [totalProducts, setTotalProducts] = useState<number>(0);
   const [perPage, setPerPage] = useState<number>(10);
   const [showGenerator, setShowGenerator] = useState<boolean>(false);
-  const [showBulkGenerator, setShowBulkGenerator] = useState<boolean>(false);
   
   useEffect(() => {
     if (user && activeStore?.id) {
@@ -44,7 +41,6 @@ const ProductSelector = () => {
   useEffect(() => {
     if (user && activeStore?.id) {
       const timeoutId = setTimeout(() => {
-        setPage(1);
         loadProducts();
       }, 300);
 
@@ -137,20 +133,28 @@ const ProductSelector = () => {
         ? [...prev, categoryId]
         : prev.filter(c => c !== categoryId)
     );
+    // Reset to page 1 when filters change
+    setPage(1);
   };
 
   const removeCategoryFilter = (categoryId: number) => {
     setSelectedCategories(prev => prev.filter(c => c !== categoryId));
+    // Reset to page 1 when filters change
+    setPage(1);
   };
 
   const clearAllFilters = () => {
     setSelectedCategories([]);
     setSearchTerm('');
+    // Reset to page 1 when filters change
+    setPage(1);
   };
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
+    // Reset to page 1 when search changes
+    setPage(1);
   };
 
   const handleSelectProduct = (productId: number) => {
@@ -188,26 +192,6 @@ const ProductSelector = () => {
     setShowGenerator(true);
   };
 
-  const handleBulkGenerate = () => {
-    if (selectedProducts.size === 0) {
-      toast.error("Please select at least one product");
-      return;
-    }
-
-    if (selectedProducts.size < 3) {
-      toast.error("Bulk generation requires at least 3 products");
-      return;
-    }
-
-    if (!activeStore?.id) {
-      toast.error("No active store selected");
-      return;
-    }
-
-    console.log('Starting bulk generation for products:', Array.from(selectedProducts));
-    setShowBulkGenerator(true);
-  };
-
   const getSelectedProductsData = () => {
     return products.filter(product => selectedProducts.has(product.id));
   };
@@ -222,18 +206,6 @@ const ProductSelector = () => {
           </AlertDescription>
         </Alert>
       </div>
-    );
-  }
-
-  if (showBulkGenerator) {
-    return (
-      <BulkContentGenerator
-        selectedProducts={getSelectedProductsData()}
-        onBack={() => {
-          setShowBulkGenerator(false);
-          setSelectedProducts(new Set());
-        }}
-      />
     );
   }
 
@@ -379,29 +351,14 @@ const ProductSelector = () => {
                   </label>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={handleGenerateContent} 
-                    disabled={selectedProducts.size === 0}
-                    variant="default"
-                    size="sm"
-                  >
-                    Generate for {selectedProducts.size}
-                  </Button>
-
-                  {selectedProducts.size >= 3 && (
-                    <Button 
-                      onClick={handleBulkGenerate} 
-                      disabled={selectedProducts.size < 3}
-                      variant="secondary"
-                      size="sm"
-                      className="bg-purple-100 text-purple-700 hover:bg-purple-200"
-                    >
-                      <Zap className="h-4 w-4 mr-1" />
-                      Bulk ({selectedProducts.size})
-                    </Button>
-                  )}
-                </div>
+                <Button 
+                  onClick={handleGenerateContent} 
+                  disabled={selectedProducts.size === 0}
+                  variant="default"
+                  size="sm"
+                >
+                  Generate for {selectedProducts.size}
+                </Button>
               </div>
             </div>
           </div>

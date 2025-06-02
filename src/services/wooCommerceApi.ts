@@ -197,12 +197,10 @@ export async function fetchProducts(
       console.log('Added category filter:', params.category);
     }
     
-    // Search only in product titles using the 'search' parameter with specific field targeting
+    // Search only in product titles using the 'search' parameter
     if (params.search && params.search.trim()) {
-      // Use the search parameter which searches in title, content, and excerpt by default
-      // We'll need to rely on WooCommerce's search behavior or use a custom approach
       url += `&search=${encodeURIComponent(params.search.trim())}`;
-      console.log('Added title search filter:', params.search.trim());
+      console.log('Added search filter:', params.search.trim());
     }
     
     if (params.include && params.include.length > 0) {
@@ -230,25 +228,45 @@ export async function fetchProducts(
       throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
     }
     
-    let products = await response.json();
+    const products = await response.json();
+    
+    // Get pagination info from response headers
     const total = parseInt(response.headers.get('X-WP-Total') || '0', 10);
     const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '0', 10);
 
-    // If we have a search term, filter the results to only include products where the title contains the search term
-    if (params.search && params.search.trim()) {
-      const searchTerm = params.search.trim().toLowerCase();
-      products = products.filter((product: Product) => 
-        product.name.toLowerCase().includes(searchTerm)
-      );
-      console.log(`Filtered ${products.length} products by title containing "${searchTerm}"`);
-    }
-
     console.log(`Fetched ${products.length} products, total: ${total}, pages: ${totalPages}`);
 
+    // If we have a search term, we might need to do additional filtering on the frontend
+    // since WooCommerce search might not be as precise as we want
+    let filteredProducts = products;
+    if (params.search && params.search.trim()) {
+      const searchTerm = params.search.trim().toLowerCase();
+      filteredProducts = products.filter((product: Product) => 
+        product.name.toLowerCase().includes(searchTerm)
+      );
+      console.log(`Frontend filtered ${filteredProducts.length} products by title containing "${searchTerm}"`);
+    }
+
+    // When we filter on frontend, we need to recalculate pagination
+    // But we should respect the original API pagination for category filters
+    if (params.search && params.search.trim() && filteredProducts.length !== products.length) {
+      // For search results that we filter on frontend, recalculate pagination
+      const perPage = params.per_page || 10;
+      const filteredTotal = filteredProducts.length;
+      const filteredTotalPages = Math.ceil(filteredTotal / perPage);
+      
+      return {
+        products: filteredProducts,
+        total: filteredTotal,
+        totalPages: filteredTotalPages,
+      };
+    }
+
+    // For category filters or no search, use the API pagination data
     return {
-      products: products,
-      total: products.length, // Update total to reflect filtered results
-      totalPages: Math.ceil(products.length / (params.per_page || 10)), // Recalculate pages
+      products: filteredProducts,
+      total: total,
+      totalPages: totalPages,
     };
   } catch (error) {
     console.error('Error fetching products:', error);

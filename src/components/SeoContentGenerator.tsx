@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
@@ -10,11 +11,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Wand2, Save, Loader2, AlertCircle } from 'lucide-react';
-import EditableSeoContent from './EditableSeoContent';
+import { Wand2, Save, Loader2, AlertCircle, Expand, Minimize2 } from 'lucide-react';
+import CollapsibleSeoCard from './CollapsibleSeoCard';
 import ModelSelector, { AIModel, modelConfig } from './ModelSelector';
-import SeoOptionsChecklist, { SeoOptions } from './SeoOptionsChecklist';
 
 interface SeoContentGeneratorProps {
   products: Product[];
@@ -36,33 +37,20 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
   const [generatedContent, setGeneratedContent] = useState<{ [productId: number]: SeoContent }>({});
   const [error, setError] = useState<string | null>(null);
   const [updatedProducts, setUpdatedProducts] = useState<Set<number>>(new Set());
-  
-  // SEO options state with all options enabled by default (for RankMath compliance)
-  const [seoOptions, setSeoOptions] = useState<SeoOptions>({
-    includeInternalLinks: true,
-    includeOutboundLinks: true,
-    includePowerWords: true,
-    includeSentimentWords: true,
-    includePermalink: true,
-    includeAltText: true,
-    includeFocusKeywords: true,
-    includeMetaDescription: true,
-  });
+  const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const loadTemplates = async () => {
       if (!user?.id) return;
 
       try {
-        // Load user's templates
         const templatesData = await getPromptTemplates(user.id);
         setTemplates(templatesData);
 
-        // Load default template
         const defaultTemplate = await getDefaultPromptTemplate(user.id);
         setPrompt(defaultTemplate);
 
-        // Set the default template as selected if available
         if (templatesData.length > 0) {
           const defaultTemplateRecord = templatesData.find(t => t.is_default);
           if (defaultTemplateRecord) {
@@ -89,74 +77,10 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
     }
   };
 
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const totalCreditsRequired = products.length * modelConfig[selectedModel].credits;
   const canAffordGeneration = credits >= totalCreditsRequired;
-
-  // Function to modify the prompt based on selected options
-  const getModifiedPrompt = (basePrompt: string): string => {
-    let modifiedPrompt = basePrompt;
-
-    // Remove or modify sections based on unchecked options
-    if (!seoOptions.includeOutboundLinks) {
-      modifiedPrompt = modifiedPrompt.replace(/OUTBOUND LINKS STRATEGY[\s\S]*?(?=INTERNAL LINKS STRATEGY|FOCUS KEYWORDS|$)/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/- MANDATORY: Include 3-5 OUTBOUND LINKS[\s\S]*?(?=- Content should be|$)/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/OUTBOUND LINKING EXAMPLES[\s\S]*?(?=Output MUST|$)/g, '');
-    }
-
-    if (!seoOptions.includeInternalLinks) {
-      modifiedPrompt = modifiedPrompt.replace(/INTERNAL LINKS STRATEGY[\s\S]*?(?=FOCUS KEYWORDS|OUTBOUND LINKS|$)/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/- Include 3-5 internal product links[\s\S]*?(?=- Include 2-3 internal category|$)/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/- Include 2-3 internal category links[\s\S]*?(?=- MANDATORY|$)/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/INTERNAL LINKING EXAMPLES[\s\S]*?(?=OUTBOUND LINKING|$)/g, '');
-    }
-
-    if (!seoOptions.includePowerWords) {
-      modifiedPrompt = modifiedPrompt.replace(/MUST include a POWER WORD \([^)]+\)/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/AND a SENTIMENT WORD/g, 'MUST include a SENTIMENT WORD');
-    }
-
-    if (!seoOptions.includeSentimentWords) {
-      modifiedPrompt = modifiedPrompt.replace(/AND a SENTIMENT WORD \([^)]+\)/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/MUST include a POWER WORD \([^)]+\) AND/g, 'MUST include a POWER WORD');
-    }
-
-    if (!seoOptions.includePermalink) {
-      modifiedPrompt = modifiedPrompt.replace(/PERMALINK:\s*/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/- SEO Permalink:[\s\S]*?(?=- Meta Description|$)/g, '');
-    }
-
-    if (!seoOptions.includeAltText) {
-      modifiedPrompt = modifiedPrompt.replace(/IMAGE ALT TEXT:\s*/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/- Image Alt Text:[\s\S]*?(?=Output MUST|$)/g, '');
-    }
-
-    if (!seoOptions.includeFocusKeywords) {
-      modifiedPrompt = modifiedPrompt.replace(/FOCUS KEYWORDS:\s*/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/- Focus Keywords:[\s\S]*?(?=- Image Alt Text|$)/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/FOCUS KEYWORDS INSTRUCTION[\s\S]*?(?=Content Requirements|$)/g, '');
-    }
-
-    if (!seoOptions.includeMetaDescription) {
-      modifiedPrompt = modifiedPrompt.replace(/META DESCRIPTION:\s*/g, '');
-      modifiedPrompt = modifiedPrompt.replace(/- Meta Description:[\s\S]*?(?=- Focus Keywords|$)/g, '');
-    }
-
-    // Update the output sections list based on selected options
-    const outputSections = [];
-    outputSections.push('LONG DESCRIPTION:');
-    outputSections.push('SHORT DESCRIPTION:');
-    outputSections.push('META TITLE:');
-    
-    if (seoOptions.includeMetaDescription) outputSections.push('META DESCRIPTION:');
-    if (seoOptions.includeFocusKeywords) outputSections.push('FOCUS KEYWORDS:');
-    if (seoOptions.includeAltText) outputSections.push('IMAGE ALT TEXT:');
-    if (seoOptions.includePermalink) outputSections.push('PERMALINK:');
-
-    const outputSectionText = `Output MUST include these EXACT section headers in your response:\n${outputSections.join('\n')}`;
-    modifiedPrompt = modifiedPrompt.replace(/Output MUST include these EXACT section headers[\s\S]*?(?=Do not include|$)/g, outputSectionText + '\n\n');
-
-    return modifiedPrompt;
-  };
 
   const handleGenerateContent = async () => {
     setError(null);
@@ -185,26 +109,32 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
     }
 
     setGenerating(true);
+    setGenerationProgress({ current: 0, total: products.length });
     const newContent: { [productId: number]: SeoContent } = {};
     let successCount = 0;
 
     try {
-      // Get the modified prompt based on selected options
-      const modifiedPrompt = getModifiedPrompt(prompt);
-      
-      for (const product of products) {
-        console.log(`Generating content for product: ${product.name} using ${selectedModel}`);
-        toast.info(`Generating content for ${product.name} with ${modelConfig[selectedModel].name}...`);
+      for (let i = 0; i < products.length; i++) {
+        const product = products[i];
+        
+        console.log(`Generating content for product ${i + 1}/${products.length}: ${product.name} using ${selectedModel}`);
+        toast.info(`Generating content for ${product.name} (${i + 1}/${products.length})...`);
+        
+        setGenerationProgress({ current: i + 1, total: products.length });
 
         try {
-          const content = await generateSeoContent(product, modifiedPrompt, user.id, selectedModel, activeStore.id);
-          // Add store_id to the content
+          const content = await generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id);
           content.store_id = activeStore.id;
           newContent[product.id] = content;
           successCount++;
 
           if (onContentGenerated) {
             onContentGenerated(product.id, content);
+          }
+
+          const delayMs = products.length > 10 ? 2000 : products.length > 5 ? 1000 : 500;
+          if (i < products.length - 1) {
+            await delay(delayMs);
           }
         } catch (error) {
           console.error(`Error generating content for ${product.name}:`, error);
@@ -217,7 +147,6 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
         setGeneratedContent(prev => ({ ...prev, ...newContent }));
         toast.success(`Generated SEO content for ${successCount} product(s) using ${modelConfig[selectedModel].name}`);
         
-        // Refresh both user credits and store usage
         console.log('Refreshing credits and store usage...');
         await Promise.all([
           refreshCredits(),
@@ -233,6 +162,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
       toast.error(error instanceof Error ? error.message : 'Failed to generate content');
     } finally {
       setGenerating(false);
+      setGenerationProgress({ current: 0, total: 0 });
     }
   };
 
@@ -326,7 +256,32 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
     }));
   };
 
+  const handleToggleExpand = (productId: number) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleExpandAll = () => {
+    const productIds = products.map(p => p.id);
+    setExpandedCards(new Set(productIds));
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedCards(new Set());
+  };
+
   const hasGeneratedContent = Object.keys(generatedContent).some(productId => 
+    products.some(p => p.id.toString() === productId)
+  );
+
+  const generatedProductsForCurrentSelection = Object.entries(generatedContent).filter(([productId]) => 
     products.some(p => p.id.toString() === productId)
   );
 
@@ -372,12 +327,19 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
               </div>
             </div>
 
-            <SeoOptionsChecklist
-              options={seoOptions}
-              onOptionsChange={setSeoOptions}
-            />
+            {generating && generationProgress.total > 0 && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Generation Progress</span>
+                  <span>{generationProgress.current} / {generationProgress.total}</span>
+                </div>
+                <Progress 
+                  value={(generationProgress.current / generationProgress.total) * 100} 
+                  className="w-full" 
+                />
+              </div>
+            )}
 
-            {/* Template Selector */}
             {templates.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="templateSelector">Select Template</Label>
@@ -409,11 +371,19 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
                 className="min-h-[200px] font-mono text-sm"
                 placeholder="Enter your prompt template..."
               />
+              <div className="text-xs text-gray-500">
+                ⚠️ <strong>Important:</strong> Changing the prompt structure or field order may affect content parsing. The system expects specific section headers in order.
+              </div>
             </div>
             
             <div className="flex justify-between items-center">
               <div className="text-sm text-gray-500">
                 Selected products: {products.map(p => p.name).join(', ')}
+                {products.length > 10 && (
+                  <div className="text-xs text-blue-600 mt-1">
+                    Large batch detected - generation will include delays to prevent timeouts
+                  </div>
+                )}
               </div>
               <div className="space-x-2">
                 <Button 
@@ -460,23 +430,50 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
         </CardContent>
       </Card>
 
-      {/* Display generated content with editing capabilities */}
-      {Object.entries(generatedContent).map(([productIdStr, content]) => {
-        const product = products.find(p => p.id.toString() === productIdStr);
-        const productId = parseInt(productIdStr);
-        
-        if (!product) return null;
+      {/* Generated Content Section */}
+      {generatedProductsForCurrentSelection.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Generated SEO Content ({generatedProductsForCurrentSelection.length} products)</CardTitle>
+              <div className="space-x-2">
+                <Button size="sm" variant="outline" onClick={handleExpandAll}>
+                  <Expand className="h-4 w-4 mr-1" />
+                  Expand All
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleCollapseAll}>
+                  <Minimize2 className="h-4 w-4 mr-1" />
+                  Collapse All
+                </Button>
+              </div>
+            </div>
+            <CardDescription>
+              Click on any product card to expand and view/edit all SEO fields
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {generatedProductsForCurrentSelection.map(([productIdStr, content]) => {
+              const product = products.find(p => p.id.toString() === productIdStr);
+              const productId = parseInt(productIdStr);
+              
+              if (!product) return null;
 
-        return (
-          <EditableSeoContent
-            key={productIdStr}
-            content={content}
-            product={product}
-            onContentUpdate={(updatedContent) => handleContentUpdate(productId, updatedContent)}
-            prompt={prompt}
-          />
-        );
-      })}
+              return (
+                <CollapsibleSeoCard
+                  key={productIdStr}
+                  content={content}
+                  product={product}
+                  onContentUpdate={(updatedContent) => handleContentUpdate(productId, updatedContent)}
+                  prompt={prompt}
+                  selectedModel={selectedModel}
+                  isExpanded={expandedCards.has(productId)}
+                  onToggleExpand={() => handleToggleExpand(productId)}
+                />
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
