@@ -20,6 +20,7 @@ const ProductSelector = () => {
   const { activeStore } = useMultiStore();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [allProductIds, setAllProductIds] = useState<number[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -42,6 +43,7 @@ const ProductSelector = () => {
     if (user && activeStore?.id) {
       const timeoutId = setTimeout(() => {
         loadProducts();
+        loadAllProductIds();
       }, 300);
 
       return () => clearTimeout(timeoutId);
@@ -127,6 +129,43 @@ const ProductSelector = () => {
     }
   };
 
+  const loadAllProductIds = async () => {
+    try {
+      if (!user || !activeStore?.id) return;
+
+      const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
+      if (!credentials) return;
+
+      // Fetch all product IDs with current filters but without pagination
+      const result = await fetchProducts(credentials, {
+        category: selectedCategories.length > 0 ? selectedCategories : undefined,
+        search: searchTerm || undefined,
+        per_page: 100, // Fetch more products to get all IDs
+        page: 1
+      });
+
+      // If there are more than 100 products, we need to fetch all pages
+      const allIds: number[] = [];
+      allIds.push(...result.products.map(p => p.id));
+
+      if (result.totalPages > 1) {
+        for (let pageNum = 2; pageNum <= result.totalPages; pageNum++) {
+          const pageResult = await fetchProducts(credentials, {
+            category: selectedCategories.length > 0 ? selectedCategories : undefined,
+            search: searchTerm || undefined,
+            per_page: 100,
+            page: pageNum
+          });
+          allIds.push(...pageResult.products.map(p => p.id));
+        }
+      }
+
+      setAllProductIds(allIds);
+    } catch (error) {
+      console.error('Error loading all product IDs:', error);
+    }
+  };
+
   const handleCategorySelect = (categoryId: number, checked: boolean) => {
     setSelectedCategories(prev => 
       checked 
@@ -135,12 +174,16 @@ const ProductSelector = () => {
     );
     // Reset to page 1 when filters change
     setPage(1);
+    // Clear selections when filters change
+    setSelectedProducts(new Set());
   };
 
   const removeCategoryFilter = (categoryId: number) => {
     setSelectedCategories(prev => prev.filter(c => c !== categoryId));
     // Reset to page 1 when filters change
     setPage(1);
+    // Clear selections when filters change
+    setSelectedProducts(new Set());
   };
 
   const clearAllFilters = () => {
@@ -148,6 +191,8 @@ const ProductSelector = () => {
     setSearchTerm('');
     // Reset to page 1 when filters change
     setPage(1);
+    // Clear selections when filters change
+    setSelectedProducts(new Set());
   };
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +200,8 @@ const ProductSelector = () => {
     setSearchTerm(value);
     // Reset to page 1 when search changes
     setPage(1);
+    // Clear selections when search changes
+    setSelectedProducts(new Set());
   };
 
   const handleSelectProduct = (productId: number) => {
@@ -170,10 +217,12 @@ const ProductSelector = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedProducts.size === products.length) {
+    if (selectedProducts.size === allProductIds.length && allProductIds.length > 0) {
+      // If all products are selected, deselect all
       setSelectedProducts(new Set());
     } else {
-      setSelectedProducts(new Set(products.map(p => p.id)));
+      // Select all product IDs from all pages
+      setSelectedProducts(new Set(allProductIds));
     }
   };
 
@@ -192,9 +241,50 @@ const ProductSelector = () => {
     setShowGenerator(true);
   };
 
+  // New function to fetch all selected products from all pages
+  const getAllSelectedProductsData = async (): Promise<Product[]> => {
+    if (!user || !activeStore?.id || selectedProducts.size === 0) {
+      return [];
+    }
+
+    try {
+      const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
+      if (!credentials) {
+        throw new Error("WooCommerce credentials not found");
+      }
+
+      const selectedProductIds = Array.from(selectedProducts);
+      console.log('Fetching all selected products:', selectedProductIds);
+
+      // Fetch products in batches to avoid URL length limits
+      const batchSize = 100;
+      const allSelectedProducts: Product[] = [];
+
+      for (let i = 0; i < selectedProductIds.length; i += batchSize) {
+        const batch = selectedProductIds.slice(i, i + batchSize);
+        const result = await fetchProducts(credentials, {
+          include: batch,
+          per_page: batchSize
+        });
+        allSelectedProducts.push(...result.products);
+      }
+
+      console.log('Fetched all selected products:', allSelectedProducts.length);
+      return allSelectedProducts;
+    } catch (error) {
+      console.error('Error fetching all selected products:', error);
+      toast.error("Failed to fetch selected products");
+      return [];
+    }
+  };
+
   const getSelectedProductsData = () => {
     return products.filter(product => selectedProducts.has(product.id));
   };
+
+  // Calculate if all products are selected
+  const allProductsSelected = allProductIds.length > 0 && selectedProducts.size === allProductIds.length;
+  const someProductsSelected = selectedProducts.size > 0 && selectedProducts.size < allProductIds.length;
 
   if (!activeStore) {
     return (
@@ -227,6 +317,7 @@ const ProductSelector = () => {
         
         <SeoContentGenerator
           products={getSelectedProductsData()}
+          getAllSelectedProducts={getAllSelectedProductsData}
           onContentGenerated={(productId, content) => {
             console.log('Content generated for product:', productId);
           }}
@@ -247,6 +338,7 @@ const ProductSelector = () => {
       <div className="grid md:grid-cols-[300px_1fr] gap-6">
         {/* Filters sidebar */}
         <div className="space-y-6 bg-white p-4 rounded-lg border">
+          {/* ... keep existing code (filters sidebar implementation) */}
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-lg">Filters</h2>
             {loadingFilters && (
@@ -343,11 +435,16 @@ const ProductSelector = () => {
                 <div className="flex items-center">
                   <Checkbox 
                     id="selectAll" 
-                    checked={products.length > 0 && selectedProducts.size === products.length} 
+                    checked={allProductsSelected}
+                    ref={(ref) => {
+                      if (ref && 'indeterminate' in ref) {
+                        (ref as any).indeterminate = someProductsSelected;
+                      }
+                    }}
                     onCheckedChange={handleSelectAll}
                   />
                   <label htmlFor="selectAll" className="ml-2 text-sm">
-                    Select All
+                    Select All ({totalProducts})
                   </label>
                 </div>
 

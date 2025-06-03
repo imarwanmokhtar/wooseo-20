@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export const DEFAULT_PROMPT_TEMPLATE = `You are an expert eCommerce SEO product description writer specializing in RankMath optimization. Your task is to write detailed and SEO-optimized product descriptions that pass ALL RankMath SEO checks.
@@ -232,44 +231,8 @@ export async function getPromptTemplates(userId: string): Promise<any[]> {
 }
 
 export async function getDefaultPromptTemplate(userId: string): Promise<string> {
-  try {
-    console.log('Getting default prompt template for user:', userId);
-    
-    // First try to get the user's default template
-    const { data, error } = await supabase
-      .from('prompt_templates')
-      .select('template')
-      .eq('user_id', userId)
-      .eq('is_default', true)
-      .single();
-
-    if (error || !data) {
-      console.log('No default template found for user, checking for any template');
-      
-      // If no default, get the first template they have
-      const { data: anyTemplate, error: anyError } = await supabase
-        .from('prompt_templates')
-        .select('template')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (anyError || !anyTemplate) {
-        console.log('No templates found for user, returning default');
-        return DEFAULT_PROMPT_TEMPLATE;
-      }
-
-      console.log('Using user\'s first template as default');
-      return anyTemplate.template;
-    }
-
-    console.log('Using user\'s default template');
-    return data.template;
-  } catch (error) {
-    console.error('Error getting default prompt template:', error);
-    return DEFAULT_PROMPT_TEMPLATE;
-  }
+  // Always return the default template since we're now using system prompts separately
+  return DEFAULT_PROMPT_TEMPLATE;
 }
 
 export async function deletePromptTemplate(templateId: string): Promise<void> {

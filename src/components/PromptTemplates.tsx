@@ -1,278 +1,223 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { savePromptTemplate, getPromptTemplates, deletePromptTemplate, DEFAULT_PROMPT_TEMPLATE } from '@/services/aiGenerationService';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Check, Copy, FileText, PlusCircle, Trash } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
+
+interface SystemPrompt {
+  id: string;
+  name: string;
+  template: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
 
 const PromptTemplates = () => {
-  const [templateName, setTemplateName] = useState('');
-  const [promptContent, setPromptContent] = useState(DEFAULT_PROMPT_TEMPLATE);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { user } = useAuth();
+  const [prompts, setPrompts] = useState<SystemPrompt[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [formData, setFormData] = useState({ name: '', template: '' });
 
   useEffect(() => {
-    const fetchTemplates = async () => {
-      if (user) {
-        try {
-          const data = await getPromptTemplates(user.id);
-          setTemplates(data);
-        } catch (error) {
-          console.error('Error fetching prompt templates:', error);
-          toast.error('Failed to load prompt templates.');
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchTemplates();
+    if (user) {
+      fetchPrompts();
+    }
   }, [user]);
 
-  const handleSaveTemplate = async () => {
-    if (!user) {
-      toast.error('You must be logged in to save templates.');
-      return;
-    }
-
-    if (!templateName || !promptContent) {
-      toast.error('Template name and content are required.');
-      return;
-    }
-
-    setSaving(true);
+  const fetchPrompts = async () => {
     try {
-      await savePromptTemplate(user.id, templateName, promptContent);
-      toast.success('Template saved successfully!');
-      const updatedTemplates = await getPromptTemplates(user.id);
-      setTemplates(updatedTemplates);
-      resetForm();
+      const { data, error } = await supabase
+        .from('prompt_templates')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPrompts(data || []);
     } catch (error) {
-      console.error('Error saving prompt template:', error);
-      toast.error('Failed to save template.');
+      console.error('Error fetching system prompts:', error);
+      toast.error('Failed to load system prompts');
     } finally {
-      setSaving(false);
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteTemplate = async (templateId: string) => {
-    if (!user) {
-      toast.error('You must be logged in to delete templates.');
-      return;
-    }
-
-    if (!window.confirm('Are you sure you want to delete this template?')) {
+  const handleSave = async () => {
+    if (!formData.name.trim() || !formData.template.trim()) {
+      toast.error('Please fill in all fields');
       return;
     }
 
     try {
-      await deletePromptTemplate(templateId);
-      toast.success('Template deleted successfully!');
-      const updatedTemplates = await getPromptTemplates(user.id);
-      setTemplates(updatedTemplates);
+      if (editingId) {
+        // Update existing prompt
+        const { error } = await supabase
+          .from('prompt_templates')
+          .update({
+            name: formData.name,
+            template: formData.template,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingId);
+
+        if (error) throw error;
+        toast.success('System prompt updated successfully');
+      } else {
+        // Create new prompt
+        const { error } = await supabase
+          .from('prompt_templates')
+          .insert({
+            user_id: user?.id,
+            name: formData.name,
+            template: formData.template,
+            is_default: false
+          });
+
+        if (error) throw error;
+        toast.success('System prompt created successfully');
+      }
+
+      setFormData({ name: '', template: '' });
+      setEditingId(null);
+      setIsCreating(false);
+      fetchPrompts();
     } catch (error) {
-      console.error('Error deleting prompt template:', error);
-      toast.error('Failed to delete template.');
+      console.error('Error saving system prompt:', error);
+      toast.error('Failed to save system prompt');
     }
   };
 
-  const handleCopyToClipboard = (text: string, templateId: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(templateId);
-    toast.success('Template copied to clipboard!');
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleEdit = (prompt: SystemPrompt) => {
+    setFormData({ name: prompt.name, template: prompt.template });
+    setEditingId(prompt.id);
+    setIsCreating(true);
   };
 
-  const resetForm = () => {
-    setTemplateName('');
-    setPromptContent('');
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('prompt_templates')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('System prompt deleted successfully');
+      fetchPrompts();
+    } catch (error) {
+      console.error('Error deleting system prompt:', error);
+      toast.error('Failed to delete system prompt');
+    }
   };
+
+  const handleCancel = () => {
+    setFormData({ name: '', template: '' });
+    setEditingId(null);
+    setIsCreating(false);
+  };
+
+  if (isLoading) {
+    return <div className="text-center">Loading system prompts...</div>;
+  }
 
   return (
     <div className="space-y-6">
-      {/* Create New Template Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <PlusCircle className="h-5 w-5 mr-2 text-seo-primary" />
-            Create New Template
-          </CardTitle>
-          <CardDescription>
-            Design a custom prompt template for generating SEO content
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Template Name</label>
-              <Input 
-                value={templateName} 
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="E.g., Technical Products, Fashion Items, etc."
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Prompt Template</label>
-              <p className="text-sm text-gray-500">
-                Use variables like {"{name}"}, {"{sku}"}, {"{price}"}, {"{description}"}, and {"{categories}"} that will be replaced with actual product data.
-              </p>
-              <Textarea 
-                value={promptContent} 
-                onChange={(e) => setPromptContent(e.target.value)}
-                className="min-h-[200px] font-mono text-sm"
-                placeholder={DEFAULT_PROMPT_TEMPLATE}
-              />
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <div className="flex justify-between w-full">
-            <Button variant="outline" onClick={resetForm}>
-              Clear
-            </Button>
-            <div className="space-x-2">
-              <Button 
-                variant="outline"
-                onClick={() => setPromptContent(DEFAULT_PROMPT_TEMPLATE)}
-              >
-                Use Default
-              </Button>
-              <Button onClick={handleSaveTemplate} disabled={saving || !templateName || !promptContent}>
-                {saving ? 'Saving...' : 'Save Template'}
-              </Button>
-            </div>
-          </div>
-        </CardFooter>
-      </Card>
+      {!isCreating && (
+        <Button onClick={() => setIsCreating(true)} className="w-full">
+          <Plus className="h-4 w-4 mr-2" />
+          Create New System Prompt
+        </Button>
+      )}
 
-      {/* Saved Templates Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">Saved Templates</h3>
-        </div>
-        
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-seo-primary mx-auto"></div>
-            <p className="mt-2 text-sm text-gray-500">Loading templates...</p>
+      {isCreating && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingId ? 'Edit System Prompt' : 'Create New System Prompt'}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="prompt-name">Prompt Name</Label>
+              <Input
+                id="prompt-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., TV Store SEO Writer"
+              />
+            </div>
+            <div>
+              <Label htmlFor="prompt-content">System Prompt</Label>
+              <Textarea
+                id="prompt-content"
+                value={formData.template}
+                onChange={(e) => setFormData({ ...formData, template: e.target.value })}
+                placeholder="e.g., Act like a professional SEO writer for a TV store. Write engaging, technical content that highlights the features and benefits of televisions..."
+                rows={4}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This prompt will guide the AI's writing style and tone, but won't change the content structure.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSave}>
+                <Save className="h-4 w-4 mr-2" />
+                {editingId ? 'Update' : 'Create'}
+              </Button>
+              <Button variant="outline" onClick={handleCancel}>
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-4">
+        {prompts.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            <p className="mb-2">No system prompts found.</p>
+            <p className="text-sm">Create your first system prompt to customize how the AI writes your content.</p>
           </div>
-        ) : templates.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="py-8">
-              <div className="text-center text-gray-500">
-                <FileText className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                <p className="mb-1">No templates saved yet</p>
-                <p className="text-sm">Create your first template to get started</p>
-              </div>
-            </CardContent>
-          </Card>
         ) : (
-          <div className="space-y-4">
-            {templates.map(template => {
-              const templateContent = template.template || '';
-              return (
-                <Card key={template.id}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-md">{template.name}</CardTitle>
-                    <CardDescription className="text-xs">Created {new Date(template.created_at).toLocaleDateString()}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="py-2">
-                    <div className="bg-gray-50 rounded p-3 font-mono text-xs overflow-auto max-h-[150px]">
-                      {templateContent.split('\n').map((line, i) => (
-                        <div key={i} className="whitespace-pre-wrap mb-1">
-                          {line}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-2">
-                    <div className="flex justify-between w-full">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDeleteTemplate(template.id)}
-                      >
-                        <Trash className="h-4 w-4 mr-1" /> Delete
-                      </Button>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setTemplateName(template.name);
-                            setPromptContent(templateContent);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="flex items-center" 
-                          onClick={() => handleCopyToClipboard(templateContent, template.id)}
-                        >
-                          {copiedId === template.id ? (
-                            <><Check className="h-4 w-4 mr-1" /> Copied</>
-                          ) : (
-                            <><Copy className="h-4 w-4 mr-1" /> Copy</>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
+          prompts.map((prompt) => (
+            <Card key={prompt.id}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">{prompt.name}</CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(prompt)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(prompt.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm bg-gray-50 p-3 rounded border">
+                  {prompt.template}
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
-
-      {/* Template Variables Guide */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-md">Template Variables</CardTitle>
-          <CardDescription>
-            Use these variables in your templates to dynamically insert product data
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-50 p-2 rounded">
-                <code className="text-sm font-bold">{"{{name}}"}</code>
-                <p className="text-xs text-gray-500">Product name</p>
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <code className="text-sm font-bold">{"{{sku}}"}</code>
-                <p className="text-xs text-gray-500">Product SKU</p>
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <code className="text-sm font-bold">{"{{price}}"}</code>
-                <p className="text-xs text-gray-500">Product price</p>
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <code className="text-sm font-bold">{"{{description}}"}</code>
-                <p className="text-xs text-gray-500">Product description</p>
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <code className="text-sm font-bold">{"{{categories}}"}</code>
-                <p className="text-xs text-gray-500">Product categories</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

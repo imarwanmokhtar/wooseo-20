@@ -2,36 +2,36 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
-import { generateSeoContent, getDefaultPromptTemplate, getPromptTemplates } from '@/services/aiGenerationService';
+import { generateSeoContent, getDefaultPromptTemplate } from '@/services/aiGenerationService';
 import { updateProductWithSeoContent, getWooCommerceCredentials } from '@/services/wooCommerceApi';
 import { Product, SeoContent } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Wand2, Save, Loader2, AlertCircle, Expand, Minimize2 } from 'lucide-react';
 import CollapsibleSeoCard from './CollapsibleSeoCard';
 import ModelSelector, { AIModel, modelConfig } from './ModelSelector';
+import SystemPromptSelector from './SystemPromptSelector';
 
 interface SeoContentGeneratorProps {
   products: Product[];
+  getAllSelectedProducts?: () => Promise<Product[]>;
   onContentGenerated?: (productId: number, content: SeoContent) => void;
 }
 
 const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({ 
   products, 
+  getAllSelectedProducts,
   onContentGenerated 
 }) => {
   const { user, credits, refreshCredits } = useAuth();
   const { activeStore, refreshUsage } = useMultiStore();
   const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o-mini');
-  const [prompt, setPrompt] = useState('');
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedPromptId, setSelectedPromptId] = useState<string>('');
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [defaultPrompt, setDefaultPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [updatingWooCommerce, setUpdatingWooCommerce] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<{ [productId: number]: SeoContent }>({});
@@ -39,48 +39,49 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
   const [updatedProducts, setUpdatedProducts] = useState<Set<number>>(new Set());
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
+  const [allProducts, setAllProducts] = useState<Product[]>(products);
 
   useEffect(() => {
-    const loadTemplates = async () => {
+    const loadDefaultPrompt = async () => {
       if (!user?.id) return;
 
       try {
-        const templatesData = await getPromptTemplates(user.id);
-        setTemplates(templatesData);
-
-        const defaultTemplate = await getDefaultPromptTemplate(user.id);
-        setPrompt(defaultTemplate);
-
-        if (templatesData.length > 0) {
-          const defaultTemplateRecord = templatesData.find(t => t.is_default);
-          if (defaultTemplateRecord) {
-            setSelectedTemplateId(defaultTemplateRecord.id);
-            setPrompt(defaultTemplateRecord.template);
-          } else {
-            setSelectedTemplateId(templatesData[0].id);
-            setPrompt(templatesData[0].template);
-          }
-        }
+        const template = await getDefaultPromptTemplate(user.id);
+        setDefaultPrompt(template);
       } catch (error) {
-        console.error('Error loading templates:', error);
+        console.error('Error loading default template:', error);
       }
     };
 
-    loadTemplates();
+    loadDefaultPrompt();
   }, [user?.id]);
 
-  const handleTemplateChange = (templateId: string) => {
-    setSelectedTemplateId(templateId);
-    const selectedTemplate = templates.find(t => t.id === templateId);
-    if (selectedTemplate) {
-      setPrompt(selectedTemplate.template);
-    }
-  };
+  // Load all selected products when component mounts
+  useEffect(() => {
+    const loadAllProducts = async () => {
+      if (getAllSelectedProducts) {
+        try {
+          const allSelectedProducts = await getAllSelectedProducts();
+          setAllProducts(allSelectedProducts);
+          console.log('Loaded all selected products:', allSelectedProducts.length);
+        } catch (error) {
+          console.error('Error loading all selected products:', error);
+        }
+      }
+    };
+
+    loadAllProducts();
+  }, [getAllSelectedProducts]);
 
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  const totalCreditsRequired = products.length * modelConfig[selectedModel].credits;
+  const totalCreditsRequired = allProducts.length * modelConfig[selectedModel].credits;
   const canAffordGeneration = credits >= totalCreditsRequired;
+
+  const handlePromptSelect = (promptId: string, promptText: string) => {
+    setSelectedPromptId(promptId);
+    setSystemPrompt(promptText);
+  };
 
   const handleGenerateContent = async () => {
     setError(null);
@@ -97,33 +98,38 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
       return;
     }
 
-    if (products.length === 0) {
+    if (allProducts.length === 0) {
       toast.error('No products selected');
       return;
     }
 
     if (!canAffordGeneration) {
-      setError(`You need ${totalCreditsRequired} credits to generate content for ${products.length} product(s) with ${modelConfig[selectedModel].name}. You have ${credits} credits.`);
+      setError(`You need ${totalCreditsRequired} credits to generate content for ${allProducts.length} product(s) with ${modelConfig[selectedModel].name}. You have ${credits} credits.`);
       toast.error('Not enough credits');
       return;
     }
 
     setGenerating(true);
-    setGenerationProgress({ current: 0, total: products.length });
+    setGenerationProgress({ current: 0, total: allProducts.length });
     const newContent: { [productId: number]: SeoContent } = {};
     let successCount = 0;
 
     try {
-      for (let i = 0; i < products.length; i++) {
-        const product = products[i];
+      // Combine system prompt with default template
+      const finalPrompt = systemPrompt.trim() 
+        ? `${systemPrompt}\n\n${defaultPrompt}` 
+        : defaultPrompt;
+
+      for (let i = 0; i < allProducts.length; i++) {
+        const product = allProducts[i];
         
-        console.log(`Generating content for product ${i + 1}/${products.length}: ${product.name} using ${selectedModel}`);
-        toast.info(`Generating content for ${product.name} (${i + 1}/${products.length})...`);
+        console.log(`Generating content for product ${i + 1}/${allProducts.length}: ${product.name} using ${selectedModel}`);
+        toast.info(`Generating content for ${product.name} (${i + 1}/${allProducts.length})...`);
         
-        setGenerationProgress({ current: i + 1, total: products.length });
+        setGenerationProgress({ current: i + 1, total: allProducts.length });
 
         try {
-          const content = await generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id);
+          const content = await generateSeoContent(product, finalPrompt, user.id, selectedModel, activeStore.id);
           content.store_id = activeStore.id;
           newContent[product.id] = content;
           successCount++;
@@ -132,8 +138,8 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
             onContentGenerated(product.id, content);
           }
 
-          const delayMs = products.length > 10 ? 2000 : products.length > 5 ? 1000 : 500;
-          if (i < products.length - 1) {
+          const delayMs = allProducts.length > 10 ? 2000 : allProducts.length > 5 ? 1000 : 500;
+          if (i < allProducts.length - 1) {
             await delay(delayMs);
           }
         } catch (error) {
@@ -181,7 +187,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
     }
 
     const contentToUpdate = Object.entries(generatedContent).filter(([productId]) => 
-      products.some(p => p.id.toString() === productId)
+      allProducts.some(p => p.id.toString() === productId)
     );
 
     if (contentToUpdate.length === 0) {
@@ -206,7 +212,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
       
       for (const [productIdStr, content] of contentToUpdate) {
         const productId = parseInt(productIdStr);
-        const product = products.find(p => p.id === productId);
+        const product = allProducts.find(p => p.id === productId);
         
         if (product) {
           console.log(`Updating WooCommerce product: ${product.name}`);
@@ -269,7 +275,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
   };
 
   const handleExpandAll = () => {
-    const productIds = products.map(p => p.id);
+    const productIds = allProducts.map(p => p.id);
     setExpandedCards(new Set(productIds));
   };
 
@@ -278,11 +284,11 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
   };
 
   const hasGeneratedContent = Object.keys(generatedContent).some(productId => 
-    products.some(p => p.id.toString() === productId)
+    allProducts.some(p => p.id.toString() === productId)
   );
 
   const generatedProductsForCurrentSelection = Object.entries(generatedContent).filter(([productId]) => 
-    products.some(p => p.id.toString() === productId)
+    allProducts.some(p => p.id.toString() === productId)
   );
 
   return (
@@ -294,7 +300,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
             AI SEO Content Generator
           </CardTitle>
           <CardDescription>
-            Generate comprehensive SEO content for {products.length} selected product(s) from {activeStore?.store_name || 'your store'}
+            Generate comprehensive SEO content for {allProducts.length} selected product(s) from {activeStore?.store_name || 'your store'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -310,6 +316,11 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
               selectedModel={selectedModel}
               onModelChange={setSelectedModel}
               userCredits={credits}
+            />
+
+            <SystemPromptSelector
+              selectedPromptId={selectedPromptId}
+              onPromptSelect={handlePromptSelect}
             />
             
             <div className="flex justify-between items-center">
@@ -339,47 +350,12 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
                 />
               </div>
             )}
-
-            {templates.length > 0 && (
-              <div className="space-y-2">
-                <Label htmlFor="templateSelector">Select Template</Label>
-                <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        <div className="flex items-center gap-2">
-                          {template.name}
-                          {template.is_default && (
-                            <span className="text-xs text-blue-600">(Default)</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">AI Prompt Template</label>
-              <Textarea 
-                value={prompt} 
-                onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-[200px] font-mono text-sm"
-                placeholder="Enter your prompt template..."
-              />
-              <div className="text-xs text-gray-500">
-                ⚠️ <strong>Important:</strong> Changing the prompt structure or field order may affect content parsing. The system expects specific section headers in order.
-              </div>
-            </div>
             
             <div className="flex justify-between items-center">
               <div className="text-sm text-gray-500">
-                Selected products: {products.map(p => p.name).join(', ')}
-                {products.length > 10 && (
+                Selected products: {allProducts.slice(0, 3).map(p => p.name).join(', ')}
+                {allProducts.length > 3 && ` and ${allProducts.length - 3} more...`}
+                {allProducts.length > 10 && (
                   <div className="text-xs text-blue-600 mt-1">
                     Large batch detected - generation will include delays to prevent timeouts
                   </div>
@@ -388,7 +364,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
               <div className="space-x-2">
                 <Button 
                   onClick={handleGenerateContent} 
-                  disabled={generating || products.length === 0 || !canAffordGeneration || !activeStore}
+                  disabled={generating || allProducts.length === 0 || !canAffordGeneration || !activeStore}
                   className="min-w-[140px]"
                 >
                   {generating ? (
@@ -453,7 +429,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
           </CardHeader>
           <CardContent className="space-y-4">
             {generatedProductsForCurrentSelection.map(([productIdStr, content]) => {
-              const product = products.find(p => p.id.toString() === productIdStr);
+              const product = allProducts.find(p => p.id.toString() === productIdStr);
               const productId = parseInt(productIdStr);
               
               if (!product) return null;
@@ -464,7 +440,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
                   content={content}
                   product={product}
                   onContentUpdate={(updatedContent) => handleContentUpdate(productId, updatedContent)}
-                  prompt={prompt}
+                  prompt={systemPrompt.trim() ? `${systemPrompt}\n\n${defaultPrompt}` : defaultPrompt}
                   selectedModel={selectedModel}
                   isExpanded={expandedCards.has(productId)}
                   onToggleExpand={() => handleToggleExpand(productId)}

@@ -1,71 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
 import { testConnection } from '@/services/wooCommerceApi';
-import { savePromptTemplate, getPromptTemplates } from '@/services/aiGenerationService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, TestTube, CheckCircle, AlertCircle, Store, Star } from 'lucide-react';
+import { Settings as SettingsIcon, TestTube, CheckCircle, AlertCircle, Store } from 'lucide-react';
 import { WooCommerceCredentials } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-
-const UPDATED_DEFAULT_PROMPT = 
-`You are an expert eCommerce SEO product description writer specializing in optimizing product content. Your task is to write detailed and SEO-optimized product descriptions based on the provided information.
-
-Focus on creating content that ranks well in RankMath plugin. Critical requirements:
-- SEO Title MUST start with the Primary Focus Keyword exactly and MUST NOT end with a colon
-- Permalink MUST start with the Primary Focus Keyword and MUST be under 60 characters
-- Content should be clean HTML without Markdown formatting
-
-Product Information:
-Product Name: {{name}}
-SKU: {{sku}}
-Price: {{price}}
-Description: {{description}}
-Categories: {{categories}}
-
-Content Requirements:
-1. Long Description (300+ words, HTML format):
-   - Include detailed and informative content optimized for SEO
-   - Use <strong> tags for highlighting important keywords (not Markdown)
-   - Start with the Primary Focus Keyword and repeat it naturally
-   - Include the Focus Keywords in subheadings (<h2>, <h3>, <h4>)
-   - Include a Product Information Table (Size, Color, Material, Brand Name)
-   - Include Key Features, Benefits, and overview
-   - Answer one frequently searched question related to the product
-   - Use emoticons/icons to evoke emotional connection
-   - Include 3-4 internal links to related products
-   - Include external links to related categories just integrate the links normally in the text with clickable text
-
-2. Short Description (50 words max):
-   - Concise and engaging, highlighting uniqueness and key features
-   - Provided as plain text without any Markdown formatting
-
-3. SEO Elements (Optimized for Rank Math SEO Plugin):
-   - SEO Meta Title: MUST start with the exact Primary Focus Keyword, be under 60 characters, include a power word and a number, and MUST NOT end with a colon
-   - SEO Permalink: MUST start with the Primary Focus Keyword and be URL-friendly, MAXIMUM 60 CHARACTERS
-   - Meta Description: 140-155 characters, must include the Primary Focus Keyword, with a call to action
-   - Focus Keywords: Generate EXACTLY THREE focus keywords (primary, secondary, and tertiary) separated by commas
-   - Secondary Keywords: Generate EXACTLY TWO secondary keywords that complement the focus keywords
-   - Tags: Generate EXACTLY THREE product tags that are relevant to the product
-
-Output MUST include these EXACT section headers in your response:
-LONG DESCRIPTION:
-SHORT DESCRIPTION:
-META TITLE:
-META DESCRIPTION:
-FOCUS KEYWORDS:
-SECONDARY KEYWORDS:
-TAGS:
-PERMALINK:
-
-Do not include any Markdown formatting like \`\`\` or ** in your output.`;
 
 const Settings = () => {
   const { user } = useAuth();
@@ -77,8 +24,6 @@ const Settings = () => {
     consumer_secret: '',
     version: 'wc/v3',
   });
-  const [promptTemplate, setPromptTemplate] = useState(UPDATED_DEFAULT_PROMPT);
-  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -117,16 +62,6 @@ const Settings = () => {
           });
           setConnectionStatus('unknown');
         }
-
-        // Load prompt templates
-        const templatesData = await getPromptTemplates(user.id);
-        setTemplates(templatesData);
-        
-        // Set the default template or first one
-        if (templatesData && templatesData.length > 0) {
-          const defaultTemplate = templatesData.find(t => t.is_default);
-          setPromptTemplate(defaultTemplate ? defaultTemplate.template : templatesData[0].template);
-        }
       } catch (error) {
         console.error('Error loading settings:', error);
         setError('Failed to load settings');
@@ -137,41 +72,6 @@ const Settings = () => {
 
     loadSettings();
   }, [user?.id, activeStore]);
-
-  const handleMakeDefault = async (templateId: string) => {
-    if (!user?.id) {
-      toast.error('User not authenticated');
-      return;
-    }
-
-    try {
-      // First, remove default flag from all templates
-      await supabase
-        .from('prompt_templates')
-        .update({ is_default: false })
-        .eq('user_id', user.id);
-
-      // Then set the selected template as default
-      const { error } = await supabase
-        .from('prompt_templates')
-        .update({ is_default: true })
-        .eq('id', templateId)
-        .eq('user_id', user.id);
-
-      if (error) {
-        throw error;
-      }
-
-      // Refresh templates
-      const updatedTemplates = await getPromptTemplates(user.id);
-      setTemplates(updatedTemplates);
-      
-      toast.success('Template set as default successfully!');
-    } catch (error) {
-      console.error('Error setting default template:', error);
-      toast.error('Failed to set default template');
-    }
-  };
 
   const handleTestConnection = async () => {
     if (!credentials.url || !credentials.consumer_key || !credentials.consumer_secret) {
@@ -211,9 +111,6 @@ const Settings = () => {
     setError(null);
 
     try {
-      // Save prompt template
-      await savePromptTemplate(user.id, 'Default Template', promptTemplate);
-
       // Update store credentials if we have an active store
       if (activeStore?.id && credentials.store_name && credentials.url && credentials.consumer_key && credentials.consumer_secret) {
         const { error } = await supabase
@@ -264,7 +161,7 @@ const Settings = () => {
           Settings
         </h1>
         <p className="text-gray-600">
-          Manage your WooCommerce credentials and AI prompt templates
+          Manage your WooCommerce store connections
         </p>
       </div>
 
@@ -420,82 +317,6 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Saved Templates Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Saved Templates</CardTitle>
-            <CardDescription>
-              Manage your saved prompt templates and set default template
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {templates.length === 0 ? (
-              <div className="text-center py-4 text-gray-500">
-                No templates saved yet. Create templates in the Prompt Templates page.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {templates.map((template) => (
-                  <div key={template.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{template.name}</span>
-                        {template.is_default && (
-                          <Badge variant="default" className="flex items-center gap-1">
-                            <Star className="h-3 w-3" />
-                            Default
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Created: {new Date(template.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!template.is_default && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleMakeDefault(template.id)}
-                          className="flex items-center gap-1"
-                        >
-                          <Star className="h-4 w-4" />
-                          Make Default
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* AI Prompt Template Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Prompt Template</CardTitle>
-            <CardDescription>
-              Customize the default prompt template used for generating SEO content
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="promptTemplate">Default Prompt Template</Label>
-              <Textarea
-                id="promptTemplate"
-                value={promptTemplate}
-                onChange={(e) => setPromptTemplate(e.target.value)}
-                className="min-h-[400px] font-mono text-sm"
-                placeholder="Enter your AI prompt template..."
-              />
-              <p className="text-sm text-gray-500">
-                Use placeholders like {`{{name}}`}, {`{{sku}}`}, {`{{price}}`}, {`{{description}}`}, and {`{{categories}}`} for dynamic content.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Save Button */}
         <div className="flex justify-end">
           <Button 
@@ -510,7 +331,7 @@ const Settings = () => {
               </>
             ) : (
               <>
-                <Save className="h-4 w-4 mr-2" />
+                <SettingsIcon className="h-4 w-4 mr-2" />
                 Save Settings
               </>
             )}
