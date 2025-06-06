@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { MultiStoreProvider } from "@/contexts/MultiStoreContext";
 import { SeoPluginProvider } from "@/contexts/SeoPluginContext";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Index from "./pages/Index";
@@ -51,6 +52,8 @@ const App = () => (
           </MultiStoreProvider>
         </AuthProvider>
       </BrowserRouter>
+      <Analytics />
+      <SpeedInsights />
     </TooltipProvider>
   </QueryClientProvider>
 );
