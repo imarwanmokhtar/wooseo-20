@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sparkles } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 const ResetPassword = () => {
@@ -44,9 +44,13 @@ const ResetPassword = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <Link to="/" className="inline-flex items-center">
-            <Sparkles className="h-8 w-8 text-seo-primary mr-2" />
-            <span className="text-2xl font-bold text-seo-primary">SEO Scribe</span>
+          <Link to="/" className="inline-flex items-center group">
+            <div className="bg-gradient-to-r from-seo-primary to-seo-secondary p-2 rounded-xl mr-3 group-hover:scale-110 transition-transform duration-200">
+              <Zap className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-2xl font-display font-bold bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
+              wooSEO
+            </span>
           </Link>
         </div>
         

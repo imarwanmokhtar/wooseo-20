@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Zap } from 'lucide-react';
+import { Zap, Mail } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -22,6 +22,17 @@ const Footer = () => {
             <Link to="/login" className="hover:text-seo-accent transition-colors font-medium">Login to Dashboard</Link>
           </div>
         </div>
+        
+        <div className="text-center mb-8">
+          <a 
+            href="mailto:team@wooseos.com" 
+            className="inline-flex items-center text-seo-accent hover:text-white transition-colors font-medium text-lg"
+          >
+            <Mail className="h-5 w-5 mr-2" />
+            team@wooseos.com
+          </a>
+        </div>
+        
         <div className="border-t border-gray-700 pt-8 text-center text-gray-400">
           <p>&copy; {new Date().getFullYear()} wooSEO - Professional WooCommerce SEO Content Generator. All rights reserved. Transform your e-commerce SEO today.</p>
         </div>

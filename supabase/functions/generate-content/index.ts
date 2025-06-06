@@ -123,7 +123,7 @@ VALIDATION: Every piece of content MUST pass RankMath SEO checks. Count keywords
     parsedContent.product_name = product.name;
     parsedContent.user_id = userId;
 
-    // Handle credits and store usage
+    // Handle credits and store usage with corrected credit amounts
     const creditsRequired = getCreditsForModel(model);
     console.log('Credits required for model:', creditsRequired);
 
@@ -211,12 +211,15 @@ VALIDATION: Every piece of content MUST pass RankMath SEO checks. Count keywords
 function getCreditsForModel(model: string): number {
   switch (model) {
     case 'gpt-4o':
+      return 2;
     case 'gpt-4.1':
-      return 5;
+      return 3;
     case 'gpt-4o-mini':
       return 1;
+    case 'gpt-3.5-turbo':
+      return 1;
     case 'gemini-2.0-flash':
-      return 3;
+      return 1;
     default:
       return 1;
   }

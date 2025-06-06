@@ -6,17 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
+import { useSeoPlugin } from '@/contexts/SeoPluginContext';
 import WooCommerceSetup from '@/components/WooCommerceSetup';
 import ProductSelector from '@/components/ProductSelector';
 import StoreSelector from '@/components/StoreSelector';
+import SeoPluginSelector from '@/components/SeoPluginSelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PromptTemplates from '@/components/PromptTemplates';
 import CreditPurchase from '@/components/CreditPurchase';
-import { Sparkles, ShoppingBag, FileText, PenTool, Coins, TrendingUp } from 'lucide-react';
+import { Sparkles, ShoppingBag, FileText, PenTool, Coins, TrendingUp, Settings } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, session, userDetails, credits, refreshCredits, loading: authLoading } = useAuth();
   const { stores, activeStore, storeUsage, loading: storeLoading } = useMultiStore();
+  const { selectedPlugin, setSelectedPlugin } = useSeoPlugin();
   const [showStoreSetup, setShowStoreSetup] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -74,6 +77,16 @@ const Dashboard = () => {
         {hasStores && (
           <div className="mb-8 p-4 bg-white rounded-lg border">
             <StoreSelector onAddStore={() => setShowStoreSetup(true)} />
+          </div>
+        )}
+
+        {/* SEO Plugin Configuration */}
+        {hasStores && (
+          <div className="mb-8">
+            <SeoPluginSelector 
+              selectedPlugin={selectedPlugin}
+              onPluginSelect={setSelectedPlugin}
+            />
           </div>
         )}
 

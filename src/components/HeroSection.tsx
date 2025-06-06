@@ -3,13 +3,27 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle, Shield } from 'lucide-react';
 
 const HeroSection = () => {
   const { user } = useAuth();
 
+  const trustTags = [
+    "Supports GPT-4o & GPT-4o-mini",
+    "No Plugin Required", 
+    "SEO Optimized by Default"
+  ];
+
   return (
     <header className="relative bg-gradient-to-br from-seo-primary via-seo-secondary to-seo-primary/80 text-white overflow-hidden">
+      {/* SEO Plugin Support Badge */}
+      <div className="absolute top-6 left-6 z-10">
+        <div className="inline-flex items-center bg-white/15 backdrop-blur-sm rounded-full px-4 py-2 border border-white/30 animate-scale-in">
+          <Shield className="h-4 w-4 mr-2 text-seo-accent" />
+          <span className="text-sm font-medium text-white/95">Supporting RankMath, YoastSEO, AIOSEO</span>
+        </div>
+      </div>
+
       {/* Background effects */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
       <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
@@ -17,61 +31,57 @@ const HeroSection = () => {
       
       <div className="container mx-auto py-24 px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center animate-fade-in">
-          {/* SEO Badge with Focus Keywords */}
+          {/* SEO Badge */}
           <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-6 py-2 mb-8 border border-white/20 animate-scale-in">
             <Sparkles className="h-4 w-4 mr-2" />
-            <span className="text-sm font-medium">Ultimate AI SEO Content Generator</span>
+            <span className="text-sm font-medium">AI-Powered Content Generation</span>
           </div>
           
-          {/* H1 with Primary Focus Keyword and Power Words */}
-          <h1 className="text-6xl md:text-7xl font-display font-extrabold tracking-tight mb-8 leading-tight animate-fade-in">
-            <span className="block">Best WooCommerce SEO</span>
-            <span className="block bg-gradient-to-r from-seo-accent to-white bg-clip-text text-transparent">
-              Content Generator Tool
-            </span>
+          {/* Main Headlines */}
+          <h1 className="text-5xl md:text-7xl font-display font-extrabold tracking-tight mb-8 leading-tight animate-fade-in">
+            <span className="block">Smarter WooCommerce Content</span>
+            <span className="block">in <span className="text-seo-accent">Seconds.</span></span>
+            <span className="block text-3xl md:text-4xl mt-4 font-semibold">No Guesswork. No Overpaying.</span>
           </h1>
           
-          {/* Optimized Meta Description Content */}
+          {/* Subheadline */}
           <p className="text-xl md:text-2xl max-w-4xl mx-auto mb-12 text-white/90 leading-relaxed animate-fade-in">
-            Generate professional SEO-optimized product descriptions, meta titles, and focus keywords with our 
-            advanced AI content generator. Boost your WooCommerce store's search rankings and drive more organic traffic instantly.
+            AI-powered product descriptions, meta tags, and alt text – fully customized, lightning fast, and priced to scale.
           </p>
           
-          {/* CTA Buttons with Action Keywords */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16 animate-fade-in">
+          {/* CTA Button */}
+          <div className="mb-12 animate-fade-in">
             <Button 
               asChild 
               size="lg" 
               className="bg-seo-accent hover:bg-seo-accent/90 text-white py-6 px-10 text-lg font-semibold rounded-2xl transform hover:scale-105 transition-all duration-200 shadow-2xl hover:shadow-seo-accent/25 group"
             >
               <Link to={user ? "/dashboard" : "/register"} className="flex items-center">
-                {user ? "Access Dashboard Now" : "Start Free SEO Optimization"}
+                👉 Start Free – No Card Needed
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
-            
-            <Button 
-              asChild 
-              variant="outline" 
-              size="lg" 
-              className="border-2 border-white/30 text-gray-900 bg-white hover:bg-gray-50 py-6 px-8 text-lg rounded-2xl backdrop-blur-sm transition-all duration-200 hover:scale-105"
-            >
-              <Link to="#woocommerce-seo-features" onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('woocommerce-seo-features')?.scrollIntoView({ behavior: 'smooth' });
-              }}>Discover SEO Features</Link>
-            </Button>
           </div>
           
-          {/* SEO Stats with Keywords */}
+          {/* Trust Tags */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-16">
+            {trustTags.map((tag, index) => (
+              <div key={index} className="flex items-center justify-center bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20 animate-scale-in" style={{ animationDelay: `${index * 0.1}s` }}>
+                <CheckCircle className="h-4 w-4 mr-2 text-seo-accent" />
+                <span className="text-sm font-medium text-white/90">{tag}</span>
+              </div>
+            ))}
+          </div>
+          
+          {/* SEO Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
             <div className="text-center animate-scale-in">
               <div className="text-3xl font-bold text-seo-accent">10K+</div>
-              <div className="text-white/80">Products SEO Optimized</div>
+              <div className="text-white/80">Products Optimized</div>
             </div>
             <div className="text-center animate-scale-in">
               <div className="text-3xl font-bold text-seo-accent">90+</div>
-              <div className="text-white/80">RankMath SEO Score</div>
+              <div className="text-white/80">SEO Score</div>
             </div>
             <div className="text-center animate-scale-in">
               <div className="text-3xl font-bold text-seo-accent">40%</div>
@@ -79,7 +89,7 @@ const HeroSection = () => {
             </div>
             <div className="text-center animate-scale-in">
               <div className="text-3xl font-bold text-seo-accent">2 Min</div>
-              <div className="text-white/80">Quick Setup</div>
+              <div className="text-white/80">Setup Time</div>
             </div>
           </div>
         </div>

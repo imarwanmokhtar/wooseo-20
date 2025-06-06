@@ -97,6 +97,214 @@ export async function updateCredits(userId: string, creditsToAdd: number): Promi
   }
 }
 
+// Detect which SEO plugin is active on the WordPress site
+export async function detectSeoPlugin(credentials: WooCommerceCredentials): Promise<string | null> {
+  try {
+    console.log('Detecting active SEO plugin...');
+    
+    // Check for active plugins via WordPress REST API
+    const pluginsUrl = `${credentials.url}/wp-json/wp/v2/plugins`;
+    const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
+
+    try {
+      const response = await fetch(pluginsUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const plugins = await response.json();
+        console.log('Found plugins:', plugins);
+        
+        // Check for each SEO plugin
+        for (const plugin of plugins) {
+          if (plugin.status === 'active') {
+            if (plugin.plugin.includes('seo-by-rank-math') || plugin.name.toLowerCase().includes('rank math')) {
+              console.log('Detected RankMath SEO plugin');
+              return 'rankmath';
+            }
+            if (plugin.plugin.includes('wordpress-seo') || plugin.name.toLowerCase().includes('yoast')) {
+              console.log('Detected Yoast SEO plugin');
+              return 'yoast';
+            }
+            if (plugin.plugin.includes('all-in-one-seo-pack') || plugin.name.toLowerCase().includes('all in one seo')) {
+              console.log('Detected All in One SEO plugin');
+              return 'aioseo';
+            }
+          }
+        }
+      }
+    } catch (pluginError) {
+      console.log('Plugin detection via API failed, trying alternative method...');
+    }
+
+    // Alternative: Check for plugin-specific meta fields in a sample product
+    const sampleProductUrl = `${credentials.url}/wp-json/${credentials.version}/products?per_page=1`;
+    const sampleResponse = await fetch(sampleProductUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (sampleResponse.ok) {
+      const products = await sampleResponse.json();
+      if (products.length > 0) {
+        const metaData = products[0].meta_data || [];
+        
+        // Check for plugin-specific meta keys
+        const metaKeys = metaData.map((meta: any) => meta.key);
+        
+        if (metaKeys.some((key: string) => key.startsWith('rank_math_'))) {
+          console.log('Detected RankMath SEO (via meta fields)');
+          return 'rankmath';
+        }
+        if (metaKeys.some((key: string) => key.startsWith('_yoast_wpseo_'))) {
+          console.log('Detected Yoast SEO (via meta fields)');
+          return 'yoast';
+        }
+        if (metaKeys.some((key: string) => key.startsWith('_aioseo_'))) {
+          console.log('Detected All in One SEO (via meta fields)');
+          return 'aioseo';
+        }
+      }
+    }
+
+    console.log('No SEO plugin detected, using default meta fields');
+    return null;
+  } catch (error) {
+    console.error('Error detecting SEO plugin:', error);
+    return null;
+  }
+}
+
+// Generate SEO meta data based on selected plugin
+export function generateSeoMetaData(seoContent: SeoContent, seoPlugin: string | null): Array<{ key: string; value: string }> {
+  const focusKeywords = seoContent.focus_keywords || '';
+  const keywordArray = focusKeywords.split(',').map(k => k.trim()).filter(k => k);
+  const primaryFocusKeyword = keywordArray[0] || '';
+  
+  console.log('Generating meta data for SEO plugin:', seoPlugin);
+  console.log('Focus keywords:', focusKeywords);
+  console.log('Keyword array:', keywordArray);
+
+  const metaData: Array<{ key: string; value: string }> = [];
+
+  // Standard WordPress meta fields (always include these)
+  metaData.push(
+    { key: '_wp_page_template', value: 'default' },
+    { key: 'product_seo_title', value: seoContent.meta_title },
+    { key: 'product_seo_description', value: seoContent.meta_description },
+    { key: 'product_seo_keywords', value: focusKeywords }
+  );
+
+  switch (seoPlugin) {
+    case 'rankmath':
+      console.log('Adding RankMath SEO meta fields');
+      metaData.push(
+        { key: 'rank_math_title', value: seoContent.meta_title },
+        { key: 'rank_math_description', value: seoContent.meta_description },
+        { key: 'rank_math_focus_keyword', value: focusKeywords },
+        { key: 'rank_math_pillar_content', value: 'off' },
+        { key: 'rank_math_robots', value: 'index,follow' },
+        ...keywordArray.map((keyword, index) => ({
+          key: `rank_math_focus_keyword_${index + 1}`,
+          value: keyword
+        }))
+      );
+      break;
+
+    case 'yoast':
+      console.log('Adding Yoast SEO meta fields with all focus keywords');
+      metaData.push(
+        { key: '_yoast_wpseo_title', value: seoContent.meta_title },
+        { key: '_yoast_wpseo_metadesc', value: seoContent.meta_description },
+        { key: '_yoast_wpseo_focuskw', value: primaryFocusKeyword },
+        { key: '_yoast_wpseo_canonical', value: '' },
+        { key: '_yoast_wpseo_meta-robots-noindex', value: '0' },
+        { key: '_yoast_wpseo_meta-robots-nofollow', value: '0' },
+        { key: '_yoast_wpseo_meta-robots-adv', value: 'none' },
+        { key: '_yoast_wpseo_bctitle', value: seoContent.meta_title },
+        { key: '_yoast_wpseo_opengraph-title', value: seoContent.meta_title },
+        { key: '_yoast_wpseo_opengraph-description', value: seoContent.meta_description },
+        { key: '_yoast_wpseo_twitter-title', value: seoContent.meta_title },
+        { key: '_yoast_wpseo_twitter-description', value: seoContent.meta_description }
+      );
+
+      // Add ALL focus keywords for Yoast SEO - using multiple approaches for better compatibility
+      keywordArray.forEach((keyword, index) => {
+        // Add individual keyword fields
+        metaData.push({ key: `_yoast_wpseo_focuskeyword_${index + 1}`, value: keyword });
+        metaData.push({ key: `_yoast_wpseo_keyword_${index + 1}`, value: keyword });
+        
+        // Yoast Premium additional keyword fields
+        if (index > 0) {
+          metaData.push({ key: `_yoast_wpseo_focuskw_${index}`, value: keyword });
+        }
+      });
+
+      // Add all keywords in various formats for maximum compatibility
+      metaData.push(
+        { key: '_yoast_wpseo_focuskeywords', value: focusKeywords },
+        { key: '_yoast_wpseo_keywords', value: focusKeywords },
+        { key: '_yoast_wpseo_focus_keywords', value: focusKeywords },
+        { key: '_yoast_wpseo_additional_keyphrases', value: focusKeywords }
+      );
+      
+      console.log(`Added ${keywordArray.length} focus keywords to Yoast SEO with multiple field formats`);
+      console.log('Yoast meta fields added:', metaData.filter(m => m.key.includes('yoast')).map(m => `${m.key}: ${m.value}`));
+      break;
+
+    case 'aioseo':
+      console.log('Adding All in One SEO meta fields - NOTE: Custom post types require AIOSEO Pro');
+      metaData.push(
+        { key: '_aioseo_title', value: seoContent.meta_title },
+        { key: '_aioseo_description', value: seoContent.meta_description },
+        { key: '_aioseo_focus_keyword', value: primaryFocusKeyword }
+      );
+
+      // Add all focus keywords for AIOSEO
+      if (keywordArray.length > 1) {
+        metaData.push({ key: '_aioseo_keyphrases', value: focusKeywords });
+      }
+      break;
+
+    default:
+      console.log('Using default/universal SEO meta fields');
+      // Add universal meta fields that work with most themes and plugins
+      metaData.push(
+        { key: 'seo_title', value: seoContent.meta_title },
+        { key: 'seo_description', value: seoContent.meta_description },
+        { key: 'seo_keywords', value: focusKeywords },
+        { key: 'meta_title', value: seoContent.meta_title },
+        { key: 'meta_description', value: seoContent.meta_description },
+        { key: 'meta_keywords', value: focusKeywords },
+        { key: 'focus_keywords', value: focusKeywords },
+        { key: 'ai_generated_seo', value: 'true' }
+      );
+      break;
+  }
+
+  // Add image alt text fields (universal)
+  const imageAltText = seoContent.alt_text || seoContent.meta_title;
+  metaData.push(
+    { key: '_wp_attachment_image_alt', value: imageAltText },
+    { key: 'product_image_caption', value: imageAltText },
+    { key: 'product_image_description', value: imageAltText },
+    { key: '_wp_attachment_image_caption', value: imageAltText },
+    { key: '_wp_attachment_image_description', value: imageAltText }
+  );
+
+  console.log('Total meta fields generated:', metaData.length);
+  console.log('Meta fields:', metaData.map(m => `${m.key}: ${m.value.substring(0, 50)}...`));
+
+  return metaData;
+}
+
 export async function testConnection(credentials: WooCommerceCredentials): Promise<boolean> {
   try {
     console.log('Testing WooCommerce connection with:', {
@@ -325,85 +533,49 @@ function generatePermalink(title: string): string {
 export async function updateProductWithSeoContent(
   credentials: WooCommerceCredentials,
   productId: number,
-  seoContent: SeoContent
-): Promise<boolean> {
+  seoContent: SeoContent,
+  selectedPlugin?: string | null
+): Promise<{ success: boolean; seoPlugin?: string | null }> {
   try {
     console.log('Updating WooCommerce product with comprehensive SEO content:', productId);
-    console.log('All focus keywords to update:', seoContent.focus_keywords);
-
-    // Parse all focus keywords
-    const focusKeywords = seoContent.focus_keywords || '';
-    const keywordArray = focusKeywords.split(',').map(k => k.trim()).filter(k => k);
-    const primaryFocusKeyword = keywordArray[0] || '';
-    
-    console.log('Parsed keywords array:', keywordArray);
-    console.log('Primary focus keyword for RankMath:', primaryFocusKeyword);
+    console.log('Using selected SEO plugin:', selectedPlugin || 'universal fields');
 
     // Generate permalink from meta title (max 50 characters)
     const permalink = seoContent.permalink || generatePermalink(seoContent.meta_title);
     console.log('Using permalink:', permalink);
 
-    // Use the generated alt text for both alt text and image caption/description
-    const imageAltText = seoContent.alt_text || seoContent.meta_title;
-    console.log('Using alt text for images:', imageAltText);
-
-    // Prepare comprehensive meta data for RankMath SEO - ensure all values are strings
-    const metaData = [
-      // RankMath SEO fields - use ALL focus keywords
-      { key: 'rank_math_title', value: seoContent.meta_title },
-      { key: 'rank_math_description', value: seoContent.meta_description },
-      { key: 'rank_math_focus_keyword', value: focusKeywords }, // Send ALL keywords, not just primary
-      { key: 'rank_math_pillar_content', value: 'off' },
-      { key: 'rank_math_robots', value: 'index,follow' }, // Convert array to comma-separated string
-      // Store individual keywords for RankMath (it can handle multiple)
-      ...keywordArray.map((keyword, index) => ({
-        key: `rank_math_focus_keyword_${index + 1}`,
-        value: keyword
-      })),
-      // Yoast SEO compatibility
-      { key: '_yoast_wpseo_title', value: seoContent.meta_title },
-      { key: '_yoast_wpseo_metadesc', value: seoContent.meta_description },
-      { key: '_yoast_wpseo_focuskw', value: primaryFocusKeyword },
-      // Image alt text, caption, and description using the generated alt text
-      { key: '_wp_attachment_image_alt', value: imageAltText },
-      { key: 'product_image_caption', value: imageAltText },
-      { key: 'product_image_description', value: imageAltText },
-      { key: '_wp_attachment_image_caption', value: imageAltText },
-      { key: '_wp_attachment_image_description', value: imageAltText },
-      // Additional SEO meta fields
-      { key: 'seo_focus_keywords', value: focusKeywords },
-      { key: 'ai_generated_keywords', value: focusKeywords },
-      // Permalink (slug)
-      { key: '_wp_slug', value: permalink },
-    ];
+    // Generate appropriate meta data based on selected plugin
+    const metaData = generateSeoMetaData(seoContent, selectedPlugin || null);
 
     const updateData = {
       short_description: seoContent.short_description,
       description: seoContent.long_description,
-      slug: permalink, // WooCommerce product slug
+      slug: permalink,
       meta_data: metaData
     };
 
     console.log('Sending update data to WooCommerce:', updateData);
-    console.log('All focus keywords being sent:', focusKeywords);
+    console.log(`Using ${selectedPlugin || 'universal'} SEO fields`);
     console.log('Generated permalink (50 chars max):', permalink);
+    console.log('Meta data being sent:', JSON.stringify(metaData, null, 2));
 
     const success = await updateProductSeo(credentials, productId, updateData);
     
     if (success) {
-      console.log('Product updated successfully in WooCommerce with all focus keywords:', focusKeywords);
+      console.log(`Product updated successfully in WooCommerce with ${selectedPlugin || 'universal'} SEO fields`);
       console.log('Permalink set to:', permalink);
       
-      // Also update product images with alt text, caption, and description
+      // Also update product images with alt text
+      const imageAltText = seoContent.alt_text || seoContent.meta_title;
       await updateProductImages(credentials, productId, imageAltText);
     } else {
       console.error('Failed to update product in WooCommerce');
     }
 
-    return success;
+    return { success, seoPlugin: selectedPlugin || null };
   } catch (error) {
     console.error('Error updating product with SEO content:', error);
-    return false;
+    return { success: false };
   }
 }
 

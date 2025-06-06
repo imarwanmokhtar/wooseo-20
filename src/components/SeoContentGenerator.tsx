@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
+import { useSeoPlugin } from '@/contexts/SeoPluginContext';
 import { generateSeoContent, getDefaultPromptTemplate } from '@/services/aiGenerationService';
 import { updateProductWithSeoContent, getWooCommerceCredentials } from '@/services/wooCommerceApi';
 import { Product, SeoContent } from '@/types';
@@ -14,6 +14,7 @@ import { Wand2, Save, Loader2, AlertCircle, Expand, Minimize2 } from 'lucide-rea
 import CollapsibleSeoCard from './CollapsibleSeoCard';
 import ModelSelector, { AIModel, modelConfig } from './ModelSelector';
 import SystemPromptSelector from './SystemPromptSelector';
+import SeoPluginSelector from './SeoPluginSelector';
 
 interface SeoContentGeneratorProps {
   products: Product[];
@@ -28,6 +29,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
 }) => {
   const { user, credits, refreshCredits } = useAuth();
   const { activeStore, refreshUsage } = useMultiStore();
+  const { selectedPlugin, setSelectedPlugin } = useSeoPlugin();
   const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o-mini');
   const [selectedPromptId, setSelectedPromptId] = useState<string>('');
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -73,6 +75,13 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
     loadAllProducts();
   }, [getAllSelectedProducts]);
 
+  // Clear generated content when model changes to force regeneration
+  useEffect(() => {
+    console.log('Model changed to:', selectedModel, 'Clearing generated content to force regeneration');
+    setGeneratedContent({});
+    setUpdatedProducts(new Set());
+  }, [selectedModel]);
+
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const totalCreditsRequired = allProducts.length * modelConfig[selectedModel].credits;
@@ -111,6 +120,9 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
 
     setGenerating(true);
     setGenerationProgress({ current: 0, total: allProducts.length });
+    
+    // Clear existing content to ensure fresh generation
+    setGeneratedContent({});
     const newContent: { [productId: number]: SeoContent } = {};
     let successCount = 0;
 
@@ -219,8 +231,8 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
           toast.info(`Updating ${product.name} in WooCommerce...`);
 
           try {
-            const success = await updateProductWithSeoContent(credentials, productId, content);
-            if (success) {
+            const result = await updateProductWithSeoContent(credentials, productId, content, selectedPlugin);
+            if (result.success) {
               successCount++;
               newUpdatedProducts.add(productId);
               toast.success(`✅ ${product.name} updated successfully`);
@@ -291,6 +303,16 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
     allProducts.some(p => p.id.toString() === productId)
   );
 
+  const getSeoPluginName = (plugin: string | null) => {
+    switch (plugin) {
+      case 'rankmath': return 'RankMath SEO';
+      case 'yoast': return 'Yoast SEO';
+      case 'aioseo': return 'All in One SEO';
+      case 'none': return 'No SEO Plugin / Custom Fields';
+      default: return 'Not selected';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -312,6 +334,12 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
           )}
           
           <div className="space-y-6">
+            <SeoPluginSelector 
+              selectedPlugin={selectedPlugin}
+              onPluginSelect={setSelectedPlugin}
+              showCard={false}
+            />
+
             <ModelSelector
               selectedModel={selectedModel}
               onModelChange={setSelectedModel}
@@ -353,8 +381,9 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
             
             <div className="flex justify-between items-center">
               <div className="text-sm text-gray-500">
-                Selected products: {allProducts.slice(0, 3).map(p => p.name).join(', ')}
-                {allProducts.length > 3 && ` and ${allProducts.length - 3} more...`}
+                <div>Selected SEO Plugin: <span className="font-medium">{getSeoPluginName(selectedPlugin)}</span></div>
+                <div>Selected products: {allProducts.slice(0, 3).map(p => p.name).join(', ')}
+                {allProducts.length > 3 && ` and ${allProducts.length - 3} more...`}</div>
                 {allProducts.length > 10 && (
                   <div className="text-xs text-blue-600 mt-1">
                     Large batch detected - generation will include delays to prevent timeouts
@@ -364,7 +393,7 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
               <div className="space-x-2">
                 <Button 
                   onClick={handleGenerateContent} 
-                  disabled={generating || allProducts.length === 0 || !canAffordGeneration || !activeStore}
+                  disabled={generating || allProducts.length === 0 || !canAffordGeneration || !activeStore || !selectedPlugin}
                   className="min-w-[140px]"
                 >
                   {generating ? (
@@ -406,7 +435,6 @@ const SeoContentGenerator: React.FC<SeoContentGeneratorProps> = ({
         </CardContent>
       </Card>
 
-      {/* Generated Content Section */}
       {generatedProductsForCurrentSelection.length > 0 && (
         <Card>
           <CardHeader>
