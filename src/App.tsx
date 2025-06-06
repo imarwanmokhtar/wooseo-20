@@ -23,39 +23,41 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <MultiStoreProvider>
-            <SeoPluginProvider>
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <main className="flex-1">
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/content-generation" element={<ContentGeneration />} />
-                    <Route path="/payment-success" element={<PaymentSuccess />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </main>
-                <Footer />
-              </div>
-            </SeoPluginProvider>
-          </MultiStoreProvider>
-        </AuthProvider>
-      </BrowserRouter>
-      <Analytics />
-      <SpeedInsights />
-    </TooltipProvider>
-  </QueryClientProvider>
+  <>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <MultiStoreProvider>
+              <SeoPluginProvider>
+                <div className="min-h-screen flex flex-col">
+                  <Header />
+                  <main className="flex-1">
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/register" element={<Register />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/content-generation" element={<ContentGeneration />} />
+                      <Route path="/payment-success" element={<PaymentSuccess />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </main>
+                  <Footer />
+                </div>
+              </SeoPluginProvider>
+            </MultiStoreProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+    <Analytics />
+    <SpeedInsights />
+  </>
 );
 
 export default App;
