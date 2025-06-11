@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -14,7 +13,7 @@ const SolutionSection = () => {
   ];
 
   return (
-    <section className="py-24 bg-white relative">
+    <section id="solution" className="py-24 bg-white relative">
       <div className="container mx-auto px-4">
         <div className="text-center mb-20 animate-fade-in-up">
           <div className="inline-flex items-center bg-gradient-to-r from-seo-primary/10 to-seo-secondary/10 rounded-full px-6 py-3 mb-8 border border-seo-primary/20">

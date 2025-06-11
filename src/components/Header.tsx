@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Zap, User, LogOut, Settings, CreditCard } from 'lucide-react';
@@ -14,6 +14,33 @@ import {
 
 const Header = () => {
   const { user, signOut, credits } = useAuth();
+  const location = useLocation();
+
+  const scrollToPricing = () => {
+    if (location.pathname === '/') {
+      // If we're on the home page, scroll to pricing section
+      const pricingSection = document.getElementById('pricing');
+      if (pricingSection) {
+        pricingSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // If we're on another page, navigate to home and then scroll
+      window.location.href = '/#pricing';
+    }
+  };
+
+  const scrollToWhyUs = () => {
+    if (location.pathname === '/') {
+      // Try to find the why-us section by ID first
+      const whyUsSection = document.getElementById('why-us');
+      if (whyUsSection) {
+        whyUsSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // If we're on another page, navigate to home and then scroll
+      window.location.href = '/#why-us';
+    }
+  };
 
   return (
     <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50">
@@ -26,6 +53,34 @@ const Header = () => {
             wooSEO
           </span>
         </Link>
+
+        {/* Navigation Links */}
+        <nav className="hidden md:flex items-center space-x-8">
+          <button 
+            onClick={scrollToPricing}
+            className="text-gray-700 hover:text-seo-primary transition-colors font-medium cursor-pointer"
+          >
+            Pricing
+          </button>
+          <button 
+            onClick={scrollToWhyUs}
+            className="text-gray-700 hover:text-seo-primary transition-colors font-medium cursor-pointer"
+          >
+            Why Us
+          </button>
+          <Link 
+            to="/blog" 
+            className="text-gray-700 hover:text-seo-primary transition-colors font-medium"
+          >
+            Blog
+          </Link>
+          <Link 
+            to="/products-extractor" 
+            className="text-gray-700 hover:text-seo-primary transition-colors font-medium"
+          >
+            Products Extractor
+          </Link>
+        </nav>
 
         <div className="flex items-center gap-4">
           {user ? (
@@ -50,6 +105,16 @@ const Header = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard" className="cursor-pointer w-full">
                       Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/products-extractor" className="cursor-pointer w-full">
+                      Products Extractor
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/blog" className="cursor-pointer w-full">
+                      Blog
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

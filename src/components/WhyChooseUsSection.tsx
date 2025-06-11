@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Sparkles, TrendingUp, FileText, Shield, Zap, CheckCircle } from 'lucide-react';
 
@@ -43,7 +42,7 @@ const WhyChooseUsSection = () => {
   ];
 
   return (
-    <section className="py-24 bg-white relative">
+    <section id="why-us" className="py-24 bg-white relative">
       <div className="container mx-auto px-4">
         <div className="text-center mb-20 animate-fade-in-up">
           <h2 className="text-4xl md:text-5xl font-display font-bold mb-6 bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">

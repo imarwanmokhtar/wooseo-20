@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
 import { useSeoPlugin } from '@/contexts/SeoPluginContext';
+import Header from '@/components/Header';
 import WooCommerceSetup from '@/components/WooCommerceSetup';
 import ProductSelector from '@/components/ProductSelector';
 import StoreSelector from '@/components/StoreSelector';
@@ -56,6 +57,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Header />
       <main className="container mx-auto px-4 py-8">
         {/* Dashboard Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
