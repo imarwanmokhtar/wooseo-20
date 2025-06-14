@@ -142,108 +142,110 @@ export class ContentHealthAnalyzer {
   }
 
   private checkMetaTitle(product: Product): ContentHealthCheck {
-    // Check for actual meta title in meta_data array
-    const metaTitle = this.getMetaValue(product, '_yoast_wpseo_title') || 
-                     this.getMetaValue(product, '_aioseop_title') ||
-                     this.getMetaValue(product, 'rank_math_title') ||
-                     this.getMetaValue(product, '_genesis_title') ||
-                     this.getMetaValue(product, '_su_title');
+    console.log(`Checking meta title for product: ${product.name} (ID: ${product.id})`);
     
-    // If no SEO meta title is found, check if the product has a proper title
-    if (!metaTitle) {
-      const productTitle = product.name || '';
+    // First, check for actual SEO meta title in meta_data array
+    const seoMetaTitle = this.getMetaValue(product, '_yoast_wpseo_title') || 
+                        this.getMetaValue(product, '_aioseop_title') ||
+                        this.getMetaValue(product, 'rank_math_title') ||
+                        this.getMetaValue(product, '_genesis_title') ||
+                        this.getMetaValue(product, '_su_title');
+    
+    console.log(`SEO meta title found: ${seoMetaTitle ? 'Yes' : 'No'}`);
+    
+    // If we found a specific SEO meta title, validate it
+    if (seoMetaTitle && seoMetaTitle.trim().length > 0) {
+      console.log(`SEO meta title content: "${seoMetaTitle}"`);
       
-      if (!productTitle || productTitle.trim().length === 0) {
-        return {
-          field: 'Meta Title',
-          status: 'missing',
-          reason: 'No meta title or product title found'
-        };
-      }
-
-      // If product title is very generic or short, mark as poor
-      if (productTitle.toLowerCase() === 'product' || productTitle.length < 10) {
+      if (seoMetaTitle.length > 60) {
         return {
           field: 'Meta Title',
           status: 'poor',
-          reason: 'Generic or too short title (consider adding SEO meta title)'
+          reason: `SEO meta title too long (${seoMetaTitle.length} chars, recommend under 60)`
         };
       }
 
-      // If product title is too long, mark as poor
-      if (productTitle.length > 60) {
+      if (seoMetaTitle.length < 10) {
         return {
           field: 'Meta Title',
           status: 'poor',
-          reason: `Title too long (${productTitle.length} chars, recommend under 60)`
+          reason: 'SEO meta title too short (recommend at least 10 characters)'
         };
       }
 
-      // Product has a decent title but no specific SEO meta title
       return {
         field: 'Meta Title',
         status: 'complete'
       };
     }
 
-    // Check the meta title quality
-    if (metaTitle.length > 60) {
+    // No SEO meta title found, check product title as fallback
+    const productTitle = product.name || '';
+    console.log(`Product title: "${productTitle}"`);
+    
+    if (!productTitle || productTitle.trim().length === 0) {
       return {
         field: 'Meta Title',
-        status: 'poor',
-        reason: `Meta title too long (${metaTitle.length} chars, recommend under 60)`
+        status: 'missing',
+        reason: 'No SEO meta title and no product title found'
       };
     }
 
-    if (metaTitle.length < 10) {
+    // Check if product title is acceptable as meta title
+    if (productTitle.toLowerCase() === 'product' || productTitle.length < 10) {
       return {
         field: 'Meta Title',
-        status: 'poor',
-        reason: 'Meta title too short (recommend at least 10 characters)'
+        status: 'missing',
+        reason: 'No SEO meta title and product title is too generic/short'
       };
     }
 
+    if (productTitle.length > 60) {
+      return {
+        field: 'Meta Title',
+        status: 'poor',
+        reason: `No SEO meta title and product title too long (${productTitle.length} chars, recommend under 60)`
+      };
+    }
+
+    // Product title is acceptable but recommend adding proper SEO meta title
     return {
       field: 'Meta Title',
-      status: 'complete'
+      status: 'complete',
+      reason: 'Using product title (consider adding dedicated SEO meta title)'
     };
   }
 
   private checkMetaDescription(product: Product): ContentHealthCheck {
-    // Check for actual meta description in meta_data array
-    const metaDesc = this.getMetaValue(product, '_yoast_wpseo_metadesc') || 
-                    this.getMetaValue(product, '_aioseop_description') ||
-                    this.getMetaValue(product, 'rank_math_description') ||
-                    this.getMetaValue(product, '_genesis_description') ||
-                    this.getMetaValue(product, '_su_description');
+    console.log(`Checking meta description for product: ${product.name} (ID: ${product.id})`);
     
-    if (!metaDesc) {
-      // Fallback to short description if no meta description
-      const shortDesc = product.short_description || '';
-      const cleanShortDesc = shortDesc.replace(/<[^>]*>/g, '').trim();
-      
-      if (!cleanShortDesc || cleanShortDesc.length === 0) {
-        return {
-          field: 'Meta Description',
-          status: 'missing',
-          reason: 'No meta description or short description found'
-        };
-      }
+    // First, check for actual SEO meta description in meta_data array
+    const seoMetaDesc = this.getMetaValue(product, '_yoast_wpseo_metadesc') || 
+                       this.getMetaValue(product, '_aioseop_description') ||
+                       this.getMetaValue(product, 'rank_math_description') ||
+                       this.getMetaValue(product, '_genesis_description') ||
+                       this.getMetaValue(product, '_su_description');
+    
+    console.log(`SEO meta description found: ${seoMetaDesc ? 'Yes' : 'No'}`);
+    
+    // If we found a specific SEO meta description, validate it
+    if (seoMetaDesc && seoMetaDesc.trim().length > 0) {
+      const cleanMetaDesc = seoMetaDesc.replace(/<[^>]*>/g, '').trim();
+      console.log(`SEO meta description content length: ${cleanMetaDesc.length}`);
 
-      // If using short description as fallback, check its length
-      if (cleanShortDesc.length < this.settings.min_meta_description_length) {
+      if (cleanMetaDesc.length < this.settings.min_meta_description_length) {
         return {
           field: 'Meta Description',
           status: 'poor',
-          reason: `Short description too short for meta description (${cleanShortDesc.length} chars, recommend ${this.settings.min_meta_description_length}+)`
+          reason: `SEO meta description too short (${cleanMetaDesc.length} chars, recommend ${this.settings.min_meta_description_length}+)`
         };
       }
 
-      if (cleanShortDesc.length > 155) {
+      if (cleanMetaDesc.length > 155) {
         return {
           field: 'Meta Description',
           status: 'poor',
-          reason: `Short description too long for meta description (${cleanShortDesc.length} chars, recommend under 155)`
+          reason: `SEO meta description too long (${cleanMetaDesc.length} chars, recommend under 155)`
         };
       }
 
@@ -253,38 +255,58 @@ export class ContentHealthAnalyzer {
       };
     }
 
-    // Check the meta description quality
-    const cleanMetaDesc = metaDesc.replace(/<[^>]*>/g, '').trim();
-
-    if (cleanMetaDesc.length < this.settings.min_meta_description_length) {
+    // No SEO meta description found, check short description as fallback
+    const shortDesc = product.short_description || '';
+    const cleanShortDesc = shortDesc.replace(/<[^>]*>/g, '').trim();
+    console.log(`Short description length: ${cleanShortDesc.length}`);
+    
+    if (!cleanShortDesc || cleanShortDesc.length === 0) {
       return {
         field: 'Meta Description',
-        status: 'poor',
-        reason: `Meta description too short (${cleanMetaDesc.length} chars, recommend ${this.settings.min_meta_description_length}+)`
+        status: 'missing',
+        reason: 'No SEO meta description and no short description found'
       };
     }
 
-    if (cleanMetaDesc.length > 155) {
+    // Check if short description is acceptable as meta description
+    if (cleanShortDesc.length < this.settings.min_meta_description_length) {
       return {
         field: 'Meta Description',
-        status: 'poor',
-        reason: `Meta description too long (${cleanMetaDesc.length} chars, recommend under 155)`
+        status: 'missing',
+        reason: `No SEO meta description and short description too short (${cleanShortDesc.length} chars, recommend ${this.settings.min_meta_description_length}+)`
       };
     }
 
+    if (cleanShortDesc.length > 155) {
+      return {
+        field: 'Meta Description',
+        status: 'poor',
+        reason: `No SEO meta description and short description too long for meta (${cleanShortDesc.length} chars, recommend under 155)`
+      };
+    }
+
+    // Short description is acceptable but recommend adding proper SEO meta description
     return {
       field: 'Meta Description',
-      status: 'complete'
+      status: 'complete',
+      reason: 'Using short description (consider adding dedicated SEO meta description)'
     };
   }
 
   private getMetaValue(product: Product, metaKey: string): string | null {
     if (!product.meta_data || !Array.isArray(product.meta_data)) {
+      console.log(`No meta_data array found for product ${product.id}`);
       return null;
     }
 
     const metaItem = product.meta_data.find(meta => meta.key === metaKey);
-    return metaItem && metaItem.value ? String(metaItem.value) : null;
+    const value = metaItem && metaItem.value ? String(metaItem.value) : null;
+    
+    if (value) {
+      console.log(`Found meta key ${metaKey}: "${value}"`);
+    }
+    
+    return value;
   }
 
   private checkImageAltText(product: Product): ContentHealthCheck {
