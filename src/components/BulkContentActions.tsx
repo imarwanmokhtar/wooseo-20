@@ -36,9 +36,9 @@ const BulkContentActions: React.FC<BulkContentActionsProps> = ({
       if (!user) return;
       
       const { data, error } = await supabase
-        .from('user_credits')
+        .from('users')
         .select('credits')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
       
       if (!error && data) {
