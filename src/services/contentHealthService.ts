@@ -156,6 +156,7 @@ export class ContentHealthAnalyzer {
     // If we found a specific SEO meta title, validate it
     if (seoMetaTitle && seoMetaTitle.trim().length > 0) {
       console.log(`SEO meta title content: "${seoMetaTitle}"`);
+      console.log(`SEO meta title validation - length: ${seoMetaTitle.length}, returning complete status`);
       
       if (seoMetaTitle.length > 60) {
         return {
@@ -173,6 +174,8 @@ export class ContentHealthAnalyzer {
         };
       }
 
+      // SEO meta title exists and is valid length - return complete
+      console.log(`Meta title check result: COMPLETE for product ${product.id}`);
       return {
         field: 'Meta Title',
         status: 'complete'
@@ -181,7 +184,7 @@ export class ContentHealthAnalyzer {
 
     // No SEO meta title found, check product title as fallback
     const productTitle = product.name || '';
-    console.log(`Product title: "${productTitle}"`);
+    console.log(`No SEO meta title found, checking product title: "${productTitle}"`);
     
     if (!productTitle || productTitle.trim().length === 0) {
       return {
@@ -232,6 +235,7 @@ export class ContentHealthAnalyzer {
     if (seoMetaDesc && seoMetaDesc.trim().length > 0) {
       const cleanMetaDesc = seoMetaDesc.replace(/<[^>]*>/g, '').trim();
       console.log(`SEO meta description content length: ${cleanMetaDesc.length}`);
+      console.log(`SEO meta description validation - returning status based on length`);
 
       if (cleanMetaDesc.length < this.settings.min_meta_description_length) {
         return {
@@ -249,6 +253,8 @@ export class ContentHealthAnalyzer {
         };
       }
 
+      // SEO meta description exists and is valid length - return complete
+      console.log(`Meta description check result: COMPLETE for product ${product.id}`);
       return {
         field: 'Meta Description',
         status: 'complete'
@@ -258,7 +264,7 @@ export class ContentHealthAnalyzer {
     // No SEO meta description found, check short description as fallback
     const shortDesc = product.short_description || '';
     const cleanShortDesc = shortDesc.replace(/<[^>]*>/g, '').trim();
-    console.log(`Short description length: ${cleanShortDesc.length}`);
+    console.log(`No SEO meta description found, checking short description length: ${cleanShortDesc.length}`);
     
     if (!cleanShortDesc || cleanShortDesc.length === 0) {
       return {
