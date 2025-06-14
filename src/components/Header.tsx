@@ -91,7 +91,7 @@ const Header = () => {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/products-extractor" className="cursor-pointer w-full flex items-center">
+                <Link to="/content-health" className="cursor-pointer w-full flex items-center">
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Content Health Analysis
                 </Link>

@@ -17,6 +17,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import ProductsExtractor from "./pages/ProductsExtractor";
+import ContentHealth from "./pages/ContentHealth";
 import NotFound from "./pages/NotFound";
 import "./App.css";
 
@@ -39,6 +40,7 @@ function App() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/content-generation" element={<ContentGeneration />} />
                   <Route path="/products-extractor" element={<ProductsExtractor />} />
+                  <Route path="/content-health" element={<ContentHealth />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/payment-success" element={<PaymentSuccess />} />
                   <Route path="/blog" element={<Blog />} />
