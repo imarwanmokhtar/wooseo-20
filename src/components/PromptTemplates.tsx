@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, FileText } from 'lucide-react';
+import DefaultPromptTemplates from './DefaultPromptTemplates';
 
 interface SystemPrompt {
   id: string;
@@ -124,32 +126,60 @@ const PromptTemplates = () => {
     setIsCreating(false);
   };
 
+  const getPromptTypeColor = (name: string) => {
+    const colors: { [key: string]: string } = {
+      'Professional': 'bg-blue-100 text-blue-800',
+      'Playful': 'bg-pink-100 text-pink-800',
+      'Informative': 'bg-green-100 text-green-800',
+      'Luxury': 'bg-purple-100 text-purple-800',
+      'Technical': 'bg-gray-100 text-gray-800',
+    };
+    return colors[name] || 'bg-gray-100 text-gray-800';
+  };
+
   if (isLoading) {
-    return <div className="text-center">Loading system prompts...</div>;
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-seo-primary"></div>
+        <span className="ml-2 text-gray-600">Loading system prompts...</span>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {!isCreating && (
-        <Button onClick={() => setIsCreating(true)} className="w-full">
-          <Plus className="h-4 w-4 mr-2" />
-          Create New System Prompt
-        </Button>
-      )}
+      <DefaultPromptTemplates onTemplatesCreated={fetchPrompts} />
+      
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">System Prompt Templates</h3>
+          <p className="text-sm text-gray-600">Customize how the AI writes your content with different styles and tones</p>
+        </div>
+        {!isCreating && (
+          <Button onClick={() => setIsCreating(true)} className="flex items-center">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Template
+          </Button>
+        )}
+      </div>
 
       {isCreating && (
-        <Card>
+        <Card className="border-2 border-seo-primary/20">
           <CardHeader>
-            <CardTitle>{editingId ? 'Edit System Prompt' : 'Create New System Prompt'}</CardTitle>
+            <CardTitle className="flex items-center">
+              <FileText className="h-5 w-5 mr-2 text-seo-primary" />
+              {editingId ? 'Edit System Prompt' : 'Create New System Prompt'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="prompt-name">Prompt Name</Label>
+              <Label htmlFor="prompt-name">Template Name</Label>
               <Input
                 id="prompt-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., TV Store SEO Writer"
+                placeholder="e.g., Casual & Friendly"
+                className="mt-1"
               />
             </div>
             <div>
@@ -158,17 +188,18 @@ const PromptTemplates = () => {
                 id="prompt-content"
                 value={formData.template}
                 onChange={(e) => setFormData({ ...formData, template: e.target.value })}
-                placeholder="e.g., Act like a professional SEO writer for a TV store. Write engaging, technical content that highlights the features and benefits of televisions..."
+                placeholder="e.g., Act like a friendly and casual content writer. Write in a conversational tone that makes customers feel comfortable and engaged..."
                 rows={4}
+                className="mt-1"
               />
               <p className="text-xs text-gray-500 mt-1">
-                This prompt will guide the AI's writing style and tone, but won't change the content structure.
+                This prompt will guide the AI's writing style and tone. Be specific about the desired voice, style, and approach.
               </p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} className="bg-seo-primary hover:bg-seo-primary/90">
                 <Save className="h-4 w-4 mr-2" />
-                {editingId ? 'Update' : 'Create'}
+                {editingId ? 'Update Template' : 'Create Template'}
               </Button>
               <Button variant="outline" onClick={handleCancel}>
                 <X className="h-4 w-4 mr-2" />
@@ -181,21 +212,42 @@ const PromptTemplates = () => {
 
       <div className="grid gap-4">
         {prompts.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            <p className="mb-2">No system prompts found.</p>
-            <p className="text-sm">Create your first system prompt to customize how the AI writes your content.</p>
-          </div>
+          <Card>
+            <CardContent className="py-12 text-center">
+              <div className="space-y-4">
+                <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                  <FileText className="h-8 w-8 text-gray-400" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900">No templates found</h4>
+                  <p className="text-gray-600 max-w-sm mx-auto">
+                    Create your first system prompt template to customize how the AI writes your content.
+                  </p>
+                </div>
+                <Button onClick={() => setIsCreating(true)} className="bg-seo-primary hover:bg-seo-primary/90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Template
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           prompts.map((prompt) => (
-            <Card key={prompt.id}>
+            <Card key={prompt.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{prompt.name}</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-lg">{prompt.name}</CardTitle>
+                    <Badge className={getPromptTypeColor(prompt.name)}>
+                      {prompt.name}
+                    </Badge>
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleEdit(prompt)}
+                      className="hover:bg-blue-50"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -210,8 +262,12 @@ const PromptTemplates = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-sm bg-gray-50 p-3 rounded border">
-                  {prompt.template}
+                <div className="text-sm bg-gray-50 p-4 rounded-lg border">
+                  <p className="leading-relaxed">{prompt.template}</p>
+                </div>
+                <div className="flex justify-between items-center mt-4 text-xs text-gray-500">
+                  <span>Created: {new Date(prompt.created_at).toLocaleDateString()}</span>
+                  <span>Updated: {new Date(prompt.updated_at).toLocaleDateString()}</span>
                 </div>
               </CardContent>
             </Card>
