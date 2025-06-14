@@ -156,9 +156,11 @@ export class ContentHealthAnalyzer {
     // If we found a specific SEO meta title, validate it
     if (seoMetaTitle && seoMetaTitle.trim().length > 0) {
       console.log(`SEO meta title content: "${seoMetaTitle}"`);
-      console.log(`SEO meta title validation - length: ${seoMetaTitle.length}, returning complete status`);
+      console.log(`SEO meta title validation - length: ${seoMetaTitle.length}`);
       
+      // FIXED: Properly validate length and return appropriate status
       if (seoMetaTitle.length > 60) {
+        console.log(`Meta title check result: POOR (too long) for product ${product.id}`);
         return {
           field: 'Meta Title',
           status: 'poor',
@@ -167,6 +169,7 @@ export class ContentHealthAnalyzer {
       }
 
       if (seoMetaTitle.length < 10) {
+        console.log(`Meta title check result: POOR (too short) for product ${product.id}`);
         return {
           field: 'Meta Title',
           status: 'poor',
@@ -235,9 +238,10 @@ export class ContentHealthAnalyzer {
     if (seoMetaDesc && seoMetaDesc.trim().length > 0) {
       const cleanMetaDesc = seoMetaDesc.replace(/<[^>]*>/g, '').trim();
       console.log(`SEO meta description content length: ${cleanMetaDesc.length}`);
-      console.log(`SEO meta description validation - returning status based on length`);
-
+      
+      // FIXED: Properly validate length and return appropriate status
       if (cleanMetaDesc.length < this.settings.min_meta_description_length) {
+        console.log(`Meta description check result: POOR (too short) for product ${product.id}`);
         return {
           field: 'Meta Description',
           status: 'poor',
@@ -246,6 +250,7 @@ export class ContentHealthAnalyzer {
       }
 
       if (cleanMetaDesc.length > 155) {
+        console.log(`Meta description check result: POOR (too long) for product ${product.id}`);
         return {
           field: 'Meta Description',
           status: 'poor',

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ import { ProductContentHealth, ContentHealthSummary } from '@/types/contentHealt
 import ContentHealthTable from './ContentHealthTable';
 import ContentHealthSettings from './ContentHealthSettings';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
 
 const ContentHealthDashboard = () => {
   const { activeStore } = useMultiStore();
@@ -24,6 +24,22 @@ const ContentHealthDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [userCredits, setUserCredits] = useState(0);
+
+  // Fetch user credits
+  const fetchUserCredits = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from('user_credits')
+      .select('credits')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!error && data) {
+      setUserCredits(data.credits);
+    }
+  };
 
   const scanProducts = async () => {
     if (!activeStore || !user) return;
@@ -55,8 +71,13 @@ const ContentHealthDashboard = () => {
   useEffect(() => {
     if (activeStore && user) {
       scanProducts();
+      fetchUserCredits();
     }
   }, [activeStore, user]);
+
+  const handleCreditsUpdated = () => {
+    fetchUserCredits();
+  };
 
   if (!activeStore) {
     return (
@@ -96,6 +117,9 @@ const ContentHealthDashboard = () => {
               Last scan: {new Date(lastScan).toLocaleString()}
             </p>
           )}
+          <p className="text-sm text-blue-600 mt-1">
+            Available credits: {userCredits}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button 
@@ -255,6 +279,7 @@ const ContentHealthDashboard = () => {
             <ContentHealthTable 
               healthResults={healthResults}
               onRefresh={scanProducts}
+              onCreditsUpdated={handleCreditsUpdated}
             />
           </TabsContent>
 
