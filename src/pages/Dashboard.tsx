@@ -12,10 +12,12 @@ import WooCommerceSetup from '@/components/WooCommerceSetup';
 import ProductSelector from '@/components/ProductSelector';
 import StoreSelector from '@/components/StoreSelector';
 import SeoPluginSelector from '@/components/SeoPluginSelector';
+import ProductsExtractor from '@/components/ProductsExtractor';
+import ContentHealthDashboard from '@/components/ContentHealthDashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PromptTemplates from '@/components/PromptTemplates';
 import CreditPurchase from '@/components/CreditPurchase';
-import { Sparkles, ShoppingBag, FileText, PenTool, Coins, TrendingUp, Settings } from 'lucide-react';
+import { Sparkles, ShoppingBag, FileText, PenTool, Coins, TrendingUp, Settings, Download, CheckCircle } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, session, userDetails, credits, refreshCredits, loading: authLoading } = useAuth();
@@ -177,6 +179,12 @@ const Dashboard = () => {
               <TabsTrigger value="products" className="flex items-center">
                 <ShoppingBag className="h-4 w-4 mr-2" /> Products
               </TabsTrigger>
+              <TabsTrigger value="extractor" className="flex items-center">
+                <Download className="h-4 w-4 mr-2" /> Products Extractor
+              </TabsTrigger>
+              <TabsTrigger value="health" className="flex items-center">
+                <CheckCircle className="h-4 w-4 mr-2" /> Content Health
+              </TabsTrigger>
               <TabsTrigger value="templates" className="flex items-center">
                 <FileText className="h-4 w-4 mr-2" /> Prompt Templates
               </TabsTrigger>
@@ -187,6 +195,27 @@ const Dashboard = () => {
 
             <TabsContent value="products">
               <ProductSelector />
+            </TabsContent>
+
+            <TabsContent value="extractor">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Download className="h-5 w-5 mr-2 text-seo-primary" />
+                    Products Extractor
+                  </CardTitle>
+                  <CardDescription>
+                    Export your WooCommerce products to Excel format
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ProductsExtractor />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="health">
+              <ContentHealthDashboard />
             </TabsContent>
 
             <TabsContent value="templates">

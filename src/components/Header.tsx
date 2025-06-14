@@ -3,7 +3,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Zap, User, LogOut, Settings, CreditCard } from 'lucide-react';
+import { Zap, User, LogOut, Settings, CreditCard, ChevronDown, Download, CheckCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,12 +74,30 @@ const Header = () => {
           >
             Blog
           </Link>
-          <Link 
-            to="/products-extractor" 
-            className="text-gray-700 hover:text-seo-primary transition-colors font-medium"
-          >
-            Products Extractor
-          </Link>
+          
+          {/* Tools Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="text-gray-700 hover:text-seo-primary transition-colors font-medium flex items-center gap-1">
+                Tools
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-white border shadow-lg">
+              <DropdownMenuItem asChild>
+                <Link to="/products-extractor" className="cursor-pointer w-full flex items-center">
+                  <Download className="h-4 w-4 mr-2" />
+                  Products Extractor
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/products-extractor" className="cursor-pointer w-full flex items-center">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Content Health Analysis
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         <div className="flex items-center gap-4">
@@ -97,7 +115,7 @@ const Header = () => {
                     <span className="sr-only">User menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 bg-white border shadow-lg">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium truncate">{user.email}</p>
                   </div>
