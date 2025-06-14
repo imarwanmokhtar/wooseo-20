@@ -1,4 +1,6 @@
 
+import { ProductContentHealth, ContentHealthCheck, ContentHealthSummary } from '@/types/contentHealth';
+
 interface ContentField {
   name: string;
   minLength?: number;
