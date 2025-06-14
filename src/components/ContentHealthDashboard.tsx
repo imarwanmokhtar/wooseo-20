@@ -48,12 +48,35 @@ const ContentHealthDashboard = () => {
     try {
       console.log('Starting content health scan...');
       
-      // Fetch all products from the active store
-      const { products } = await fetchProducts(activeStore, { per_page: 100 });
-      console.log(`Analyzing ${products.length} products for content health...`);
+      // Fetch ALL products from the active store using pagination
+      let allProducts: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        console.log(`Fetching page ${page} of products...`);
+        const { products } = await fetchProducts(activeStore, { 
+          per_page: 100, 
+          page: page 
+        });
+        
+        if (products.length === 0) {
+          hasMore = false;
+        } else {
+          allProducts = [...allProducts, ...products];
+          page++;
+          
+          // If we got less than 100 products, we've reached the end
+          if (products.length < 100) {
+            hasMore = false;
+          }
+        }
+      }
+      
+      console.log(`Analyzing ${allProducts.length} products for content health...`);
 
       // Analyze each product
-      const results = contentHealthAnalyzer.analyzeBatch(products);
+      const results = contentHealthAnalyzer.analyzeBatch(allProducts);
       const summaryData = contentHealthAnalyzer.generateSummary(results);
 
       setHealthResults(results);

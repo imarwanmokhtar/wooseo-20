@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertTriangle, CheckCircle, XCircle, Search, Wand2, MoreHorizontal } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, Search, Wand2, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductContentHealth } from '@/types/contentHealth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
@@ -28,6 +28,8 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
   const [statusFilter, setStatusFilter] = useState('all');
   const [fieldFilter, setFieldFilter] = useState('all');
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Filter products based on search and filters
   const filteredResults = healthResults.filter(product => {
@@ -38,6 +40,17 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
     return matchesSearch && matchesStatus && matchesField;
   });
 
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedResults = filteredResults.slice(startIndex, endIndex);
+
+  // Reset pagination when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, fieldFilter]);
+
   // Get all unique missing fields for filter dropdown
   const allMissingFields = Array.from(
     new Set(healthResults.flatMap(product => product.missing_fields))
@@ -45,7 +58,7 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedProducts(new Set(filteredResults.map(p => p.product_id)));
+      setSelectedProducts(new Set(paginatedResults.map(p => p.product_id)));
     } else {
       setSelectedProducts(new Set());
     }
@@ -71,6 +84,11 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
     } catch (error) {
       toast.error(`Failed to ${action.toLowerCase()}`);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setSelectedProducts(new Set()); // Clear selections when changing pages
   };
 
   const getStatusIcon = (status: string) => {
@@ -168,6 +186,18 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+              <SelectTrigger className="w-full md:w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="20">20 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+                <SelectItem value="100">100 per page</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Results Table */}
@@ -177,7 +207,7 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedProducts.size === filteredResults.length && filteredResults.length > 0}
+                      checked={selectedProducts.size === paginatedResults.length && paginatedResults.length > 0}
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
@@ -189,14 +219,14 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredResults.length === 0 ? (
+                {paginatedResults.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                       No products found matching your filters
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredResults.map((product) => (
+                  paginatedResults.map((product) => (
                     <TableRow key={product.product_id}>
                       <TableCell>
                         <Checkbox
@@ -265,10 +295,68 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
             </Table>
           </div>
 
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-600">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredResults.length)} of {filteredResults.length} products
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Summary */}
           <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
             <span>
-              Showing {filteredResults.length} of {healthResults.length} products
+              Total: {filteredResults.length} of {healthResults.length} products
             </span>
             {selectedProducts.size > 0 && (
               <span>
