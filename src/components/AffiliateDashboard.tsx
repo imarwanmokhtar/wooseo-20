@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Copy, DollarSign, Users, TrendingUp, ExternalLink } from 'lucide-react';
+import { Copy, DollarSign, Users, TrendingUp, Loader2 } from 'lucide-react';
 
 interface Affiliate {
   id: string;
@@ -52,13 +52,19 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
 
   const fetchReferrals = async () => {
     try {
+      console.log('Fetching referrals for affiliate:', affiliate.id);
       const { data, error } = await supabase
         .from('referrals')
         .select('*')
         .eq('affiliate_id', affiliate.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching referrals:', error);
+        throw error;
+      }
+      
+      console.log('Referrals data:', data);
       setReferrals(data || []);
     } catch (error: any) {
       console.error('Error fetching referrals:', error);
@@ -68,13 +74,19 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
 
   const fetchCommissions = async () => {
     try {
+      console.log('Fetching commissions for affiliate:', affiliate.id);
       const { data, error } = await supabase
         .from('commissions')
         .select('*')
         .eq('affiliate_id', affiliate.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching commissions:', error);
+        throw error;
+      }
+      
+      console.log('Commissions data:', data);
       setCommissions(data || []);
     } catch (error: any) {
       console.error('Error fetching commissions:', error);
@@ -89,7 +101,9 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
       setLoading(false);
     };
 
-    loadData();
+    if (affiliate?.id) {
+      loadData();
+    }
   }, [affiliate.id]);
 
   const copyReferralLink = () => {
@@ -114,6 +128,14 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
     );
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -126,6 +148,19 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
         {getStatusBadge(affiliate.status)}
       </div>
 
+      {affiliate.status === 'pending' && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-yellow-600 rounded-full"></div>
+              <p className="text-yellow-800 font-medium">
+                Your affiliate application is pending approval. You'll be notified once it's reviewed.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
@@ -136,7 +171,7 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
           <CardContent>
             <div className="text-2xl font-bold">${affiliate.total_earnings.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              {affiliate.commission_rate * 100}% commission rate
+              {(affiliate.commission_rate * 100).toFixed(0)}% commission rate
             </p>
           </CardContent>
         </Card>
@@ -174,29 +209,31 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
       </div>
 
       {/* Referral Link */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Referral Link</CardTitle>
-          <CardDescription>
-            Share this link to start earning commissions from referrals
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input 
-              value={referralLink} 
-              readOnly 
-              className="font-mono text-sm"
-            />
-            <Button onClick={copyReferralLink} variant="outline">
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="text-sm text-gray-600">
-            <strong>Your affiliate code:</strong> {affiliate.affiliate_code}
-          </div>
-        </CardContent>
-      </Card>
+      {affiliate.status === 'active' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Referral Link</CardTitle>
+            <CardDescription>
+              Share this link to start earning commissions from referrals
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input 
+                value={referralLink} 
+                readOnly 
+                className="font-mono text-sm"
+              />
+              <Button onClick={copyReferralLink} variant="outline">
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="text-sm text-gray-600">
+              <strong>Your affiliate code:</strong> {affiliate.affiliate_code}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Commissions */}
       <Card>

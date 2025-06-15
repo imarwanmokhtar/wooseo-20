@@ -18,16 +18,22 @@ interface Affiliate {
 export const useAffiliateStatus = () => {
   const [affiliate, setAffiliate] = useState<Affiliate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
   const fetchAffiliate = async () => {
     if (!user) {
       setLoading(false);
+      setAffiliate(null);
+      setError(null);
       return;
     }
 
     try {
+      setLoading(true);
+      setError(null);
       console.log('Fetching affiliate data for user:', user.id);
+      
       const { data, error } = await supabase
         .from('affiliates')
         .select('*')
@@ -36,6 +42,7 @@ export const useAffiliateStatus = () => {
 
       if (error) {
         console.error('Error fetching affiliate:', error);
+        setError('Failed to load affiliate data');
         setAffiliate(null);
       } else {
         console.log('Affiliate data:', data);
@@ -43,6 +50,7 @@ export const useAffiliateStatus = () => {
       }
     } catch (error) {
       console.error('Error in fetchAffiliate:', error);
+      setError('An unexpected error occurred');
       setAffiliate(null);
     } finally {
       setLoading(false);
@@ -56,6 +64,7 @@ export const useAffiliateStatus = () => {
   return {
     affiliate,
     loading,
+    error,
     refetch: fetchAffiliate
   };
 };

@@ -38,13 +38,16 @@ const Register = () => {
       // Include referral code in user metadata if present
       const metadata = referralCode ? { referral_code: referralCode } : {};
       
+      console.log('Signing up with metadata:', metadata);
       await signUp(email, password, metadata);
       
       // Clear referral code after successful signup
       if (referralCode) {
+        console.log('Clearing referral code after successful signup');
         clearReferralCode();
       }
     } catch (error: any) {
+      console.error('Registration error:', error);
       setError(error.message || 'An error occurred during registration');
     } finally {
       setIsLoading(false);
@@ -73,6 +76,8 @@ const Register = () => {
               {referralCode && (
                 <div className="mt-2 text-sm text-green-600 bg-green-50 p-2 rounded">
                   🎉 You're signing up with referral code: <strong>{referralCode}</strong>
+                  <br />
+                  <span className="text-xs">Your referrer will earn commission when you make purchases!</span>
                 </div>
               )}
             </CardDescription>
@@ -109,6 +114,7 @@ const Register = () => {
                   required
                   placeholder="Create a password"
                   disabled={isLoading}
+                  minLength={6}
                 />
               </div>
               
@@ -122,6 +128,7 @@ const Register = () => {
                   required
                   placeholder="Confirm your password"
                   disabled={isLoading}
+                  minLength={6}
                 />
               </div>
             </CardContent>

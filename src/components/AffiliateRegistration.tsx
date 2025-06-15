@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { UserPlus, DollarSign, Users, TrendingUp } from 'lucide-react';
+import { UserPlus, DollarSign, Users, TrendingUp, Loader2 } from 'lucide-react';
 
 interface AffiliateRegistrationProps {
   onSuccess: () => void;
@@ -16,7 +16,10 @@ const AffiliateRegistration: React.FC<AffiliateRegistrationProps> = ({ onSuccess
   const { user } = useAuth();
 
   const handleRegister = async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error('You must be logged in to register as an affiliate');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -48,11 +51,14 @@ const AffiliateRegistration: React.FC<AffiliateRegistrationProps> = ({ onSuccess
 
       if (error) {
         console.error('Error creating affiliate:', error);
+        if (error.code === '23505') { // Unique constraint violation
+          throw new Error('You are already registered as an affiliate');
+        }
         throw error;
       }
 
       console.log('Affiliate created:', data);
-      toast.success('Affiliate application submitted! Your account is pending approval.');
+      toast.success('Affiliate application submitted successfully! Your account is pending approval.');
       onSuccess();
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -69,7 +75,7 @@ const AffiliateRegistration: React.FC<AffiliateRegistrationProps> = ({ onSuccess
           Join Our Affiliate Program
         </h1>
         <p className="text-xl text-gray-600">
-          Earn commissions by referring customers to our platform
+          Earn 40% commissions by referring customers to our platform
         </p>
       </div>
 
@@ -77,11 +83,11 @@ const AffiliateRegistration: React.FC<AffiliateRegistrationProps> = ({ onSuccess
         <Card>
           <CardHeader className="text-center">
             <DollarSign className="h-12 w-12 text-green-600 mx-auto mb-2" />
-            <CardTitle>Earn 5% Commission</CardTitle>
+            <CardTitle>Earn 40% Commission</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 text-center">
-              Earn 5% commission on every purchase made by your referrals
+              Earn 40% commission on every purchase made by your referrals
             </p>
           </CardContent>
         </Card>
@@ -128,7 +134,7 @@ const AffiliateRegistration: React.FC<AffiliateRegistrationProps> = ({ onSuccess
               <li>Submit your affiliate application</li>
               <li>Get approved and receive your unique referral code</li>
               <li>Share your referral link with potential customers</li>
-              <li>Earn 5% commission on every purchase made through your link</li>
+              <li>Earn 40% commission on every purchase made through your link</li>
               <li>Track your earnings and get paid monthly</li>
             </ol>
           </div>
@@ -144,12 +150,25 @@ const AffiliateRegistration: React.FC<AffiliateRegistrationProps> = ({ onSuccess
 
           <Button 
             onClick={handleRegister} 
-            disabled={loading}
+            disabled={loading || !user}
             className="w-full"
             size="lg"
           >
-            {loading ? 'Submitting Application...' : 'Apply to Become an Affiliate'}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting Application...
+              </>
+            ) : (
+              'Apply to Become an Affiliate'
+            )}
           </Button>
+
+          {!user && (
+            <p className="text-center text-sm text-gray-500">
+              You must be logged in to register as an affiliate
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
