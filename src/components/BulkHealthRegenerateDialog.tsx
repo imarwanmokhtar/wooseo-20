@@ -1,0 +1,78 @@
+
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import ModelSelector, { AIModel } from './ModelSelector';
+
+interface BulkHealthRegenerateDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: (selectedModel: AIModel) => void;
+  incompleteCount: number;
+  userCredits: number;
+}
+
+const modelCreditCost: Record<AIModel, number> = {
+  "gpt-4o-mini": 1,
+  "gpt-4o": 2,
+  "gpt-4.1": 3,
+  "gpt-3.5-turbo": 1,
+  "gemini-2.0-flash": 1,
+};
+
+const BulkHealthRegenerateDialog: React.FC<BulkHealthRegenerateDialogProps> = ({
+  open,
+  onClose,
+  onConfirm,
+  incompleteCount,
+  userCredits
+}) => {
+  const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o-mini');
+  const totalCost = incompleteCount * modelCreditCost[selectedModel];
+  const canAfford = userCredits >= totalCost;
+
+  return (
+    <Dialog open={open} onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Regenerate All Incomplete Products</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <span className="font-medium">{incompleteCount} products selected</span>
+            <span className="ml-2 text-sm text-gray-500">(status: Needs Attention or Critical)</span>
+          </div>
+          <div>
+            <ModelSelector
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+              userCredits={userCredits}
+            />
+          </div>
+          <div>
+            <span>Total cost: </span>
+            <span className={`font-semibold ${canAfford ? "text-black" : "text-red-600"}`}>
+              {totalCost} credit{totalCost !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {!canAfford && (
+            <div className="text-red-500 text-sm">
+              Not enough credits available. Please purchase more credits to continue.
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button 
+            disabled={!canAfford}
+            onClick={() => onConfirm(selectedModel)}
+          >
+            Regenerate All
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default BulkHealthRegenerateDialog;

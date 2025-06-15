@@ -12,6 +12,8 @@ import ProductDetailsPage from './ProductDetailsPage';
 import { fetchProducts, getWooCommerceCredentials } from '@/services/wooCommerceApi';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
 import { useAuth } from '@/contexts/AuthContext';
+import BulkHealthRegenerateDialog from './BulkHealthRegenerateDialog';
+import ModelSelector, { AIModel } from './ModelSelector';
 
 interface ContentHealthTableProps {
   healthResults: ProductContentHealth[];
@@ -21,18 +23,28 @@ interface ContentHealthTableProps {
 
 const ITEMS_PER_PAGE = 20;
 
+const modelCreditCost: Record<AIModel, number> = {
+  "gpt-4o-mini": 1,
+  "gpt-4o": 2,
+  "gpt-4.1": 3,
+  "gpt-3.5-turbo": 1,
+  "gemini-2.0-flash": 1,
+};
+
 const ContentHealthTable: React.FC<ContentHealthTableProps> = ({ 
   healthResults, 
   onRefresh,
   onCreditsUpdated 
 }) => {
-  const { user } = useAuth();
+  const { user, credits, updateCredits, refreshCredits } = useAuth();
   const { activeStore } = useMultiStore();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'needs_attention' | 'critical'>('all');
   const [selectedProduct, setSelectedProduct] = useState<{ product: Product; healthData: ProductContentHealth } | null>(null);
   const [loadingProduct, setLoadingProduct] = useState<number | null>(null);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Filter and search logic
   const filteredResults = useMemo(() => {
@@ -65,6 +77,80 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
   React.useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, searchTerm]);
+
+  // Compute incomplete results only (not "complete")
+  const incompleteResults = useMemo(() => 
+    filteredResults.filter(result => result.overall_status === 'needs_attention' || result.overall_status === 'critical'), 
+    [filteredResults]
+  );
+
+  // Handler for bulk button (open modal/dialog)
+  const openBulkDialog = () => setBulkDialogOpen(true);
+  const closeBulkDialog = () => setBulkDialogOpen(false);
+
+  // --- Actual bulk regeneration logic ---
+  async function handleBulkRegenerate(selectedModel: AIModel) {
+    if (!user || !activeStore) {
+      toast.error("User and active store required");
+      return;
+    }
+    const productList = incompleteResults;
+    const totalToProcess = productList.length;
+    const perProductCost = modelCreditCost[selectedModel];
+    const totalCost = totalToProcess * perProductCost;
+
+    if (credits < totalCost) {
+      toast.error("You do not have enough credits to regenerate all fields for these products.");
+      return;
+    }
+
+    setBulkLoading(true);
+    let processed = 0;
+    let failed = 0;
+
+    // We'll loop over each product and trigger `generateSeoContent` (as in details page, for full regeneration)
+    for (const result of productList) {
+      try {
+        // Fetch product details (as done in handleViewDetails)
+        const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
+        if (!credentials) throw new Error("No WooCommerce credentials");
+
+        const { products } = await fetchProducts(credentials, {
+          include: [result.product_id],
+          per_page: 1
+        });
+        if (products.length === 0) throw new Error("Product not found");
+
+        const product = products[0];
+
+        // Regenerate ALL fields using generateSeoContent, as in ProductDetailsPage's handleRegenerateAll
+        const prompt = `Generate comprehensive SEO content for this WooCommerce product: ${product.name}. Description: ${product.description}. Price: ${product.price}`;
+        const newContent = await import('@/services/aiGenerationService').then(m =>
+          m.generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id)
+        );
+
+        // Save new content back to WooCommerce (reuse same logic as ProductDetailsPage)
+        await import('@/services/wooCommerceApi').then(api =>
+          api.updateProductWithSeoContent(credentials, product.id, newContent)
+        );
+
+        // Deduct credits per product
+        await updateCredits(credits - perProductCost * (processed + 1));
+        await refreshCredits();
+
+        processed++;
+      } catch (err) {
+        failed++;
+        console.error('Bulk regeneration error:', err);
+      }
+    }
+
+    setBulkLoading(false);
+    setBulkDialogOpen(false);
+    toast.success(`Regenerated ${processed} products successfully${failed ? ` (${failed} failed)` : ""}.`);
+    onRefresh();
+    onCreditsUpdated();
+  }
 
   const handleViewDetails = async (healthData: ProductContentHealth) => {
     if (!activeStore || !user) {
@@ -169,6 +255,31 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Bulk Regenerate Incomplete Button */}
+      <BulkHealthRegenerateDialog
+        open={bulkDialogOpen}
+        onClose={closeBulkDialog}
+        onConfirm={handleBulkRegenerate}
+        incompleteCount={incompleteResults.length}
+        userCredits={credits}
+      />
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <div className="flex-1">
+          {/* Filters and other controls go here */}
+        </div>
+        <div>
+          <Button
+            onClick={openBulkDialog}
+            disabled={incompleteResults.length === 0}
+            variant="default"
+            size="sm"
+            className="mb-2 md:mb-0"
+          >
+            Regenerate All Incomplete Products
+          </Button>
+        </div>
+      </div>
+
       {/* Filters and Search */}
       <Card>
         <CardHeader>
