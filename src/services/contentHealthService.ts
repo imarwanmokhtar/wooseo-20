@@ -57,7 +57,8 @@ class ContentHealthAnalyzer {
       const check = this.checkField(product, field, seoPlugin);
       checks.push(check);
       
-      if (check.status === 'missing' || check.status === 'poor') {
+      // Only add to missing fields if the content is actually missing (not just poor quality)
+      if (check.status === 'missing') {
         missingFields.push(field.name);
       }
     });
@@ -167,15 +168,24 @@ class ContentHealthAnalyzer {
     // Remove HTML tags for length/word counting
     const cleanValue = value.replace(/<[^>]*>/g, '').trim();
 
-    // Check if field is missing
-    if (field.required && !cleanValue) {
-      return {
-        field: fieldName,
-        status: 'missing',
-        reason: `${fieldName.replace('_', ' ')} is required but missing`
-      };
+    // Check if field is missing (truly has no content)
+    if (!cleanValue) {
+      if (field.required) {
+        return {
+          field: fieldName,
+          status: 'missing',
+          reason: `${fieldName.replace('_', ' ')} is required but missing`
+        };
+      } else {
+        return {
+          field: fieldName,
+          status: 'missing',
+          reason: `${fieldName.replace('_', ' ')} is not set`
+        };
+      }
     }
 
+    // Content exists, now check quality requirements
     // Check minimum length requirements
     if (field.minLength && cleanValue.length < field.minLength) {
       return {
@@ -197,7 +207,7 @@ class ContentHealthAnalyzer {
       }
     }
 
-    // Field is complete
+    // Field is complete and meets quality requirements
     return {
       field: fieldName,
       status: 'complete'

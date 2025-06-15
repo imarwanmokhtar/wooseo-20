@@ -263,13 +263,29 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
   ) => {
     const isEditing = editingField === fieldName;
     const isRegeneratingField = regenerating === fieldName || regenerating === 'all';
-    const fieldIsMissing = healthData.missing_fields.includes(fieldName);
+    
+    // Check if field is truly missing (not just poor quality)
+    const fieldCheck = healthData.checks?.find(check => check.field === fieldName);
+    const fieldIsMissing = fieldCheck?.status === 'missing';
+    const fieldIsPoor = fieldCheck?.status === 'poor';
 
     return (
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">{label}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">{label}</CardTitle>
+              {fieldIsPoor && (
+                <Badge className="text-xs bg-yellow-100 text-yellow-800">
+                  Needs Improvement
+                </Badge>
+              )}
+              {fieldIsMissing && (
+                <Badge variant="destructive" className="text-xs">
+                  Missing
+                </Badge>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -328,13 +344,23 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
               </div>
             </div>
           ) : (
-            <div className={`bg-gray-50 p-3 rounded border min-h-[60px] cursor-pointer hover:bg-gray-100 transition-colors ${fieldIsMissing ? 'border-red-400' : ''}`}>
+            <div className={`bg-gray-50 p-3 rounded border min-h-[60px] cursor-pointer hover:bg-gray-100 transition-colors ${
+              fieldIsMissing ? 'border-red-400 bg-red-50' : 
+              fieldIsPoor ? 'border-yellow-400 bg-yellow-50' : ''
+            }`}>
               {value ? (
-                isTextarea ? (
-                  <div className="whitespace-pre-wrap text-sm">{value}</div>
-                ) : (
-                  <span className="text-sm">{value}</span>
-                )
+                <div>
+                  {isTextarea ? (
+                    <div className="whitespace-pre-wrap text-sm">{value}</div>
+                  ) : (
+                    <span className="text-sm">{value}</span>
+                  )}
+                  {fieldIsPoor && fieldCheck?.reason && (
+                    <div className="text-xs text-yellow-700 mt-1 italic">
+                      {fieldCheck.reason}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <span className="text-gray-400 text-sm italic">No content yet - click regenerate or edit to add</span>
               )}
@@ -350,12 +376,28 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     const isEditing = editingField === 'focus_keywords';
     const isRegeneratingField = regenerating === 'focus_keywords' || regenerating === 'all';
     const keywords = seoContent.focus_keywords ? seoContent.focus_keywords.split(',').map(k => k.trim()).filter(k => k) : [];
-    const fieldIsMissing = healthData.missing_fields.includes('focus_keywords');
+    
+    const fieldCheck = healthData.checks?.find(check => check.field === 'focus_keywords');
+    const fieldIsMissing = fieldCheck?.status === 'missing';
+    const fieldIsPoor = fieldCheck?.status === 'poor';
+    
     return (
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">Focus Keywords</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Focus Keywords</CardTitle>
+              {fieldIsPoor && (
+                <Badge className="text-xs bg-yellow-100 text-yellow-800">
+                  Needs Improvement
+                </Badge>
+              )}
+              {fieldIsMissing && (
+                <Badge variant="destructive" className="text-xs">
+                  Missing
+                </Badge>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -396,14 +438,24 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
               </Button>
             </div>
           ) : (
-            <div className={`bg-gray-50 p-3 rounded border min-h-[60px] cursor-pointer hover:bg-gray-100 transition-colors ${fieldIsMissing ? 'border-red-400' : ''}`}>
+            <div className={`bg-gray-50 p-3 rounded border min-h-[60px] cursor-pointer hover:bg-gray-100 transition-colors ${
+              fieldIsMissing ? 'border-red-400 bg-red-50' : 
+              fieldIsPoor ? 'border-yellow-400 bg-yellow-50' : ''
+            }`}>
               {keywords.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {keywords.map((keyword, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {keyword}
-                    </Badge>
-                  ))}
+                <div>
+                  <div className="flex flex-wrap gap-1">
+                    {keywords.map((keyword, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                  {fieldIsPoor && fieldCheck?.reason && (
+                    <div className="text-xs text-yellow-700 mt-1 italic">
+                      {fieldCheck.reason}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <span className="text-gray-400 text-sm italic">No focus keywords set</span>

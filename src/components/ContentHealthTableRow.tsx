@@ -43,6 +43,10 @@ const ContentHealthTableRow: React.FC<ContentHealthTableRowProps> = ({
     }
   };
 
+  // Get fields that are truly missing vs poor quality
+  const missingFields = result.checks?.filter(check => check.status === 'missing').map(check => check.field) || result.missing_fields;
+  const poorFields = result.checks?.filter(check => check.status === 'poor').map(check => check.field) || [];
+
   return (
     <TableRow>
       <TableCell>
@@ -72,16 +76,23 @@ const ContentHealthTableRow: React.FC<ContentHealthTableRowProps> = ({
         </div>
       </TableCell>
       <TableCell>
-        {result.missing_fields.length > 0 ? (
+        {(missingFields.length > 0 || poorFields.length > 0) ? (
           <div className="flex flex-wrap gap-1">
-            {result.missing_fields.slice(0, 2).map((field) => (
-              <Badge key={field} variant="outline" className="text-xs">
-                {field.replace('_', ' ')}
+            {/* Show missing fields with red badges */}
+            {missingFields.slice(0, 2).map((field) => (
+              <Badge key={field} variant="destructive" className="text-xs">
+                {field.replace('_', ' ')} (missing)
               </Badge>
             ))}
-            {result.missing_fields.length > 2 && (
+            {/* Show poor quality fields with yellow badges */}
+            {poorFields.slice(0, 2 - missingFields.length).map((field) => (
+              <Badge key={field} className="text-xs bg-yellow-100 text-yellow-800">
+                {field.replace('_', ' ')} (poor)
+              </Badge>
+            ))}
+            {(missingFields.length + poorFields.length) > 2 && (
               <Badge variant="outline" className="text-xs">
-                +{result.missing_fields.length - 2} more
+                +{(missingFields.length + poorFields.length) - 2} more
               </Badge>
             )}
           </div>
