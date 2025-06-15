@@ -10,7 +10,7 @@ interface ContentField {
 
 const CONTENT_FIELDS: ContentField[] = [
   { name: 'meta_title', minLength: 30, required: true },
-  { name: 'meta_description', minLength: 120, required: true },
+  { name: 'meta_description', minLength: 80, required: true },
   { name: 'short_description', minWords: 10, required: true },
   { name: 'long_description', minWords: 100, required: true },
   { name: 'alt_text', minLength: 5, required: false },
