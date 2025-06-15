@@ -15,29 +15,6 @@ import { updateProductWithSeoContent, getWooCommerceCredentials } from '@/servic
 import { toast } from 'sonner';
 import TagInput from './TagInput';
 import ModelSelector, { AIModel } from './ModelSelector';
-import { modelConfig } from './ModelSelector';
-
-async function incrementStoreCredits(userId: string, storeId: string, amount: number) {
-  // Directly use Supabase to update used_credits for a store, simple approach
-  const { supabase } = await import('@/integrations/supabase/client');
-  const { error } = await supabase
-    .from('woocommerce_credentials')
-    .update({ used_credits: (await (async () => {
-      const { data } = await supabase
-        .from('woocommerce_credentials')
-        .select('used_credits')
-        .eq('id', storeId)
-        .maybeSingle();
-      return (data?.used_credits || 0) + amount;
-    })()) })
-    .eq('id', storeId)
-    .eq('user_id', userId);
-
-  if (error) {
-    toast.error('Failed to update store usage');
-    console.error(error);
-  }
-}
 
 function extractMetaFromProduct(product: Product) {
   // Helper to find first matching meta key in product.meta_data from a list of possible variants
@@ -106,16 +83,15 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
   onBack,
   onContentUpdated
 }) => {
-  const { user, credits, updateCredits, refreshCredits } = useAuth();
+  const { user, credits, refreshCredits } = useAuth();
   const { activeStore } = useMultiStore();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // --- FIX: Use helper to extract meta fields safely from product ---
+  // Extract meta fields safely from product
   const extractedMeta = extractMetaFromProduct(product);
 
-  // FIX: Remove usage of product.seo_content which doesn't exist
   const [seoContent, setSeoContent] = useState<SeoContent>({
     id: 0,
     product_id: product.id,
@@ -130,30 +106,11 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     permalink: product.slug || "",
   });
 
-  // New Model Selection State
+  // Model Selection State
   const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o-mini');
 
-  // Handler for per-field credit/store increment/decrement (run after each generate op)
-  async function handleCreditConsumption(regenFields: number) {
-    if (!user || !activeStore) return;
-    if (credits < regenFields) {
-      toast.error("You don't have enough credits.");
-      return;
-    }
-    // Deduct from user
-    try {
-      await updateCredits(credits - regenFields);
-      // Increment for store
-      await incrementStoreCredits(user.id, activeStore.id, regenFields);
-      await refreshCredits(); // update credit display after mutation
-    } catch (err) {
-      console.error("Error decrementing credits:", err);
-    }
-  }
-
-  // New: Model credit cost lookup
+  // Model credit cost lookup
   function getModelCreditCost(model: AIModel) {
-    // Must support all ModelSelector keys
     switch (model) {
       case "gpt-4o-mini":
         return 1;
@@ -170,22 +127,6 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     }
   }
 
-  // Handler for NEW credit deduction per full regeneration (per model, not per field)
-  async function handleCreditConsumptionForModel(totalCost: number) {
-    if (!user || !activeStore) return;
-    if (credits < totalCost) {
-      toast.error("You don't have enough credits.");
-      return;
-    }
-    try {
-      await updateCredits(credits - totalCost);
-      await incrementStoreCredits(user.id, activeStore.id, totalCost);
-      await refreshCredits();
-    } catch (err) {
-      console.error("Error decrementing credits:", err);
-    }
-  }
-
   const handleFieldChange = (field: string, value: string) => {
     setSeoContent(prev => ({ ...prev, [field]: value }));
   };
@@ -195,7 +136,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     setSeoContent(prev => ({ ...prev, focus_keywords: keywordsString }));
   };
 
-  // Called when hitting the new Update button (single field)
+  // Called when hitting the Update button (single field)
   const handleSaveField = async (field: string) => {
     if (!activeStore || !user) {
       toast.error('Store or user authentication required');
@@ -258,7 +199,8 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
           ...prev,
           [field]: newContent[field]
         }));
-        await handleCreditConsumption(1); // Deduct 1 credit
+        // Refresh credits from server after generation
+        await refreshCredits();
         toast.success(`${fieldName.replace('_', ' ')} regenerated successfully`);
       }
     } catch (error) {
@@ -297,7 +239,8 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
         permalink: newContent.permalink || prev.permalink
       }));
 
-      await handleCreditConsumptionForModel(cost); // Deduct correct model cost
+      // Refresh credits from server after generation
+      await refreshCredits();
       toast.success('All fields regenerated successfully');
     } catch (error) {
       console.error('Error regenerating all fields:', error);

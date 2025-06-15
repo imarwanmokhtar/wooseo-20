@@ -13,7 +13,7 @@ import { fetchProducts, getWooCommerceCredentials } from '@/services/wooCommerce
 import { useMultiStore } from '@/contexts/MultiStoreContext';
 import { useAuth } from '@/contexts/AuthContext';
 import BulkHealthRegenerateDialog from './BulkHealthRegenerateDialog';
-import ModelSelector, { AIModel } from './ModelSelector';
+import { AIModel } from './ModelSelector';
 import { toast } from 'sonner';
 
 interface ContentHealthTableProps {
@@ -37,7 +37,7 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
   onRefresh,
   onCreditsUpdated 
 }) => {
-  const { user, credits, updateCredits, refreshCredits } = useAuth();
+  const { user, credits, refreshCredits } = useAuth();
   const { activeStore } = useMultiStore();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,16 +135,15 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
           api.updateProductWithSeoContent(credentials, product.id, newContent)
         );
 
-        // Deduct credits per product
-        await updateCredits(credits - perProductCost * (processed + 1));
-        await refreshCredits();
-
         processed++;
       } catch (err) {
         failed++;
         console.error('Bulk regeneration error:', err);
       }
     }
+
+    // Refresh credits from server after all operations complete
+    await refreshCredits();
 
     setBulkLoading(false);
     setBulkDialogOpen(false);
