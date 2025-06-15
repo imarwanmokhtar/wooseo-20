@@ -1,13 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { Copy, DollarSign, Users, TrendingUp, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, DollarSign, TrendingUp, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import WithdrawalRequest from './WithdrawalRequest';
+import WithdrawalHistory from './WithdrawalHistory';
 
 interface Affiliate {
   id: string;
@@ -21,145 +21,60 @@ interface Affiliate {
   updated_at: string;
 }
 
-interface Referral {
-  id: string;
-  referred_user_id: string;
-  referral_code: string;
-  created_at: string;
-}
-
-interface Commission {
-  id: string;
-  purchase_amount: number;
-  commission_amount: number;
-  commission_rate: number;
-  status: 'pending' | 'paid' | 'cancelled';
-  description: string;
-  created_at: string;
-  paid_at: string | null;
-}
-
 interface AffiliateDashboardProps {
   affiliate: Affiliate;
 }
 
 const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) => {
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
-  const referralLink = `${window.location.origin}?ref=${affiliate.affiliate_code}`;
+  const referralLink = `${window.location.origin}/register?ref=${affiliate.affiliate_code}`;
 
-  const fetchReferrals = async () => {
+  const copyToClipboard = async () => {
     try {
-      console.log('Fetching referrals for affiliate:', affiliate.id);
-      const { data, error } = await supabase
-        .from('referrals')
-        .select('*')
-        .eq('affiliate_id', affiliate.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching referrals:', error);
-        throw error;
-      }
-      
-      console.log('Referrals data:', data);
-      setReferrals(data || []);
-    } catch (error: any) {
-      console.error('Error fetching referrals:', error);
-      toast.error('Failed to load referrals');
+      await navigator.clipboard.writeText(referralLink);
+      setCopied(true);
+      toast({
+        title: "Copied!",
+        description: "Referral link copied to clipboard",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive",
+      });
     }
-  };
-
-  const fetchCommissions = async () => {
-    try {
-      console.log('Fetching commissions for affiliate:', affiliate.id);
-      const { data, error } = await supabase
-        .from('commissions')
-        .select('*')
-        .eq('affiliate_id', affiliate.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching commissions:', error);
-        throw error;
-      }
-      
-      console.log('Commissions data:', data);
-      setCommissions(data || []);
-    } catch (error: any) {
-      console.error('Error fetching commissions:', error);
-      toast.error('Failed to load commissions');
-    }
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchReferrals(), fetchCommissions()]);
-      setLoading(false);
-    };
-
-    if (affiliate?.id) {
-      loadData();
-    }
-  }, [affiliate.id]);
-
-  const copyReferralLink = () => {
-    navigator.clipboard.writeText(referralLink);
-    toast.success('Referral link copied to clipboard!');
   };
 
   const getStatusBadge = (status: string) => {
-    const variants = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      active: 'bg-green-100 text-green-800',
-      suspended: 'bg-red-100 text-red-800',
-      inactive: 'bg-gray-100 text-gray-800',
-      paid: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      pending: 'outline',
+      active: 'default',
+      suspended: 'destructive',
+      inactive: 'secondary'
     };
 
     return (
-      <Badge className={variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800'}>
+      <Badge variant={variants[status] || 'outline'}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Affiliate Dashboard</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold">Affiliate Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
             Manage your affiliate account and track your earnings
           </p>
         </div>
         {getStatusBadge(affiliate.status)}
       </div>
-
-      {affiliate.status === 'pending' && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-yellow-600 rounded-full"></div>
-              <p className="text-yellow-800 font-medium">
-                Your affiliate application is pending approval. You'll be notified once it's reviewed.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -171,7 +86,7 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
           <CardContent>
             <div className="text-2xl font-bold">${affiliate.total_earnings.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              {(affiliate.commission_rate * 100).toFixed(0)}% commission rate
+              Commission rate: {(affiliate.commission_rate * 100).toFixed(0)}%
             </p>
           </CardContent>
         </Card>
@@ -184,138 +99,90 @@ const AffiliateDashboard: React.FC<AffiliateDashboardProps> = ({ affiliate }) =>
           <CardContent>
             <div className="text-2xl font-bold">{affiliate.total_referrals}</div>
             <p className="text-xs text-muted-foreground">
-              Users referred by you
+              Users referred
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Commissions</CardTitle>
+            <CardTitle className="text-sm font-medium">Avg. per Referral</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${commissions
-                .filter(c => c.status === 'pending')
-                .reduce((sum, c) => sum + c.commission_amount, 0)
-                .toFixed(2)}
+              ${affiliate.total_referrals > 0 
+                ? (affiliate.total_earnings / affiliate.total_referrals).toFixed(2) 
+                : '0.00'
+              }
             </div>
             <p className="text-xs text-muted-foreground">
-              Awaiting payment
+              Average earnings per referral
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Referral Link */}
-      {affiliate.status === 'active' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Referral Link</CardTitle>
-            <CardDescription>
-              Share this link to start earning commissions from referrals
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input 
-                value={referralLink} 
-                readOnly 
-                className="font-mono text-sm"
-              />
-              <Button onClick={copyReferralLink} variant="outline">
-                <Copy className="h-4 w-4" />
-              </Button>
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Referral Link</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-2">
+            <div className="flex-1 p-3 bg-muted rounded-md font-mono text-sm break-all">
+              {referralLink}
             </div>
-            <div className="text-sm text-gray-600">
-              <strong>Your affiliate code:</strong> {affiliate.affiliate_code}
+            <Button 
+              onClick={copyToClipboard}
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            Share this link to earn {(affiliate.commission_rate * 100).toFixed(0)}% commission on purchases made by your referrals.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Withdrawal Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <WithdrawalRequest 
+          affiliate={affiliate} 
+          onSuccess={() => window.location.reload()} 
+        />
+        <WithdrawalHistory affiliateId={affiliate.id} />
+      </div>
+
+      {affiliate.status !== 'active' && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2 text-orange-600">
+              <div className="text-sm">
+                <strong>Account Status: {affiliate.status}</strong>
+                {affiliate.status === 'pending' && (
+                  <p className="mt-1">
+                    Your affiliate account is pending approval. You'll be able to earn commissions once approved.
+                  </p>
+                )}
+                {affiliate.status === 'suspended' && (
+                  <p className="mt-1">
+                    Your affiliate account has been suspended. Please contact support for more information.
+                  </p>
+                )}
+                {affiliate.status === 'inactive' && (
+                  <p className="mt-1">
+                    Your affiliate account is inactive. Please contact support to reactivate your account.
+                  </p>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
-
-      {/* Recent Commissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Commissions</CardTitle>
-          <CardDescription>
-            Your latest commission earnings
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {commissions.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Purchase Amount</TableHead>
-                  <TableHead>Commission</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {commissions.slice(0, 10).map((commission) => (
-                  <TableRow key={commission.id}>
-                    <TableCell>
-                      {new Date(commission.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>{commission.description}</TableCell>
-                    <TableCell>${commission.purchase_amount.toFixed(2)}</TableCell>
-                    <TableCell>${commission.commission_amount.toFixed(2)}</TableCell>
-                    <TableCell>{getStatusBadge(commission.status)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-gray-500 text-center py-8">
-              No commissions yet. Start sharing your referral link!
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Recent Referrals */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Referrals</CardTitle>
-          <CardDescription>
-            Users who signed up through your referral link
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {referrals.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Referral Code Used</TableHead>
-                  <TableHead>User ID</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {referrals.slice(0, 10).map((referral) => (
-                  <TableRow key={referral.id}>
-                    <TableCell>
-                      {new Date(referral.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="font-mono">{referral.referral_code}</TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {referral.referred_user_id.slice(0, 8)}...
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-gray-500 text-center py-8">
-              No referrals yet. Share your link to get started!
-            </p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };
