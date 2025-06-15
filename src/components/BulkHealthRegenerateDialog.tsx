@@ -33,11 +33,11 @@ const BulkHealthRegenerateDialog: React.FC<BulkHealthRegenerateDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Regenerate All Incomplete Products</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-4">
           <div>
             <span className="font-medium">{incompleteCount} products selected</span>
             <span className="ml-2 text-sm text-gray-500">(status: Needs Attention or Critical)</span>
