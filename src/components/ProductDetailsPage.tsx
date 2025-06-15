@@ -39,6 +39,29 @@ async function incrementStoreCredits(userId: string, storeId: string, amount: nu
   }
 }
 
+function extractMetaFromProduct(product: Product) {
+  // Try to find WooCommerce meta fields in meta_data array
+  const getMeta = (key: string): string => {
+    if (Array.isArray(product.meta_data)) {
+      const found = product.meta_data.find((m: any) => m.key === key);
+      if (found && typeof found.value === "string") {
+        return found.value;
+      }
+    }
+    // Support if somehow added directly to product object (as legacy workaround)
+    if ((product as any)[key] && typeof (product as any)[key] === "string") {
+      return (product as any)[key];
+    }
+    return "";
+  };
+
+  return {
+    meta_title: getMeta("meta_title"),
+    meta_description: getMeta("meta_description"),
+    focus_keywords: getMeta("focus_keywords"),
+  };
+}
+
 interface ProductDetailsPageProps {
   product: Product;
   healthData: ProductContentHealth;
@@ -68,29 +91,8 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // --- FIX: Use any meta/SEO fields that exist on the product or its custom fields ---
-  const [seoContent, setSeoContent] = useState<SeoContent>({
-    id: 0,
-    product_id: product.id,
-    product_name: product.name,
-    user_id: user?.id || '',
-    short_description: product.short_description || '',
-    long_description: product.description || '',
-    meta_title:
-      (product as any).meta_title ||
-      (product.seo_content?.meta_title ?? "") ||
-      "",
-    meta_description:
-      (product as any).meta_description ||
-      (product.seo_content?.meta_description ?? "") ||
-      "",
-    alt_text: product.images?.[0]?.alt || "",
-    focus_keywords:
-      (product as any).focus_keywords ||
-      (product.seo_content?.focus_keywords ?? "") ||
-      "",
-    permalink: product.slug || "",
-  });
+  // --- FIX: Use helper to extract meta fields safely from product ---
+  const extractedMeta = extractMetaFromProduct(product);
 
   // New Model Selection State
   const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o-mini');
