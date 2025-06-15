@@ -246,7 +246,8 @@ async function processProduct(supabase: any, jobId: string, productId: number, j
       },
       prompt: job.prompt_template,
       model: job.model,
-      userId: job.user_id
+      userId: job.user_id,
+      storeId: job.store_id
     })
   });
 

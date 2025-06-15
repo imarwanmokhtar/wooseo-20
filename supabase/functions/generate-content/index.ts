@@ -177,7 +177,7 @@ VALIDATION: Every piece of content MUST pass RankMath SEO checks. Count keywords
         console.error('Error fetching store usage:', storeError);
         // Don't throw error here, just log it
       } else {
-        const newUsedCredits = (currentStore.used_credits || 0) + 1;
+        const newUsedCredits = (currentStore.used_credits || 0) + creditsRequired;
         
         const { error: usageError } = await supabase
           .from('woocommerce_credentials')
