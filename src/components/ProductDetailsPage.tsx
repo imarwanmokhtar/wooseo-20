@@ -40,25 +40,46 @@ async function incrementStoreCredits(userId: string, storeId: string, amount: nu
 }
 
 function extractMetaFromProduct(product: Product) {
-  // Try to find WooCommerce meta fields in meta_data array
-  const getMeta = (key: string): string => {
-    if (Array.isArray(product.meta_data)) {
+  // Helper to find first matching meta key in product.meta_data from a list of possible variants
+  function findMeta(keys: string[]): string {
+    if (!Array.isArray(product.meta_data)) return "";
+    for (const key of keys) {
       const found = product.meta_data.find((m: any) => m.key === key);
-      if (found && typeof found.value === "string") {
-        return found.value;
+      if (found && typeof found.value === "string" && found.value.trim()) {
+        return found.value.trim();
       }
     }
-    // Support if somehow added directly to product object (as legacy workaround)
-    if ((product as any)[key] && typeof (product as any)[key] === "string") {
-      return (product as any)[key];
-    }
     return "";
-  };
+  }
 
   return {
-    meta_title: getMeta("meta_title"),
-    meta_description: getMeta("meta_description"),
-    focus_keywords: getMeta("focus_keywords"),
+    meta_title:
+      findMeta([
+        "meta_title",               // universal/generic
+        "product_seo_title",        // universal
+        "rank_math_title",          // RankMath
+        "_yoast_wpseo_title",       // Yoast
+        "_aioseo_title",            // All In One SEO
+      ]) ||
+      "",
+    meta_description:
+      findMeta([
+        "meta_description",
+        "product_seo_description",
+        "rank_math_description",
+        "_yoast_wpseo_metadesc",
+        "_aioseo_description",
+      ]) ||
+      "",
+    focus_keywords:
+      findMeta([
+        "focus_keywords",
+        "product_seo_keywords",
+        "rank_math_focus_keyword",
+        "_yoast_wpseo_focuskw",
+        "_aioseo_focus_keyword",
+      ]) ||
+      "",
   };
 }
 
