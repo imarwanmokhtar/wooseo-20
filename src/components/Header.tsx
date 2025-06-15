@@ -3,7 +3,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Zap, User, LogOut, Settings, CreditCard, ChevronDown, Download, CheckCircle } from 'lucide-react';
+import { Zap, User, LogOut, Settings, CreditCard, ChevronDown, Download, CheckCircle, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,6 +74,12 @@ const Header = () => {
           >
             Blog
           </Link>
+          <Link 
+            to="/affiliate" 
+            className="text-gray-700 hover:text-seo-primary transition-colors font-medium"
+          >
+            Affiliates
+          </Link>
           
           {/* Tools Dropdown */}
           <DropdownMenu>
@@ -123,6 +129,12 @@ const Header = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard" className="cursor-pointer w-full">
                       Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/affiliate" className="cursor-pointer w-full">
+                      <Users className="h-4 w-4 mr-2" />
+                      Affiliate Program
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

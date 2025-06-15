@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Zap, Mail } from 'lucide-react';
+import { Zap, Mail, Users } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -20,6 +20,10 @@ const Footer = () => {
             <Link to="/" className="hover:text-seo-accent transition-colors font-medium">WooCommerce SEO Home</Link>
             <Link to="/register" className="hover:text-seo-accent transition-colors font-medium">Start SEO Optimization</Link>
             <Link to="/login" className="hover:text-seo-accent transition-colors font-medium">Login to Dashboard</Link>
+            <Link to="/affiliate" className="hover:text-seo-accent transition-colors font-medium flex items-center gap-1">
+              <Users className="h-4 w-4" />
+              Affiliate Program
+            </Link>
           </div>
         </div>
         

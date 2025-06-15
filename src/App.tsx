@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { MultiStoreProvider } from "@/contexts/MultiStoreContext";
 import { SeoPluginProvider } from "@/contexts/SeoPluginContext";
+import ReferralTracker from "@/components/ReferralTracker";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -18,6 +19,7 @@ import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import ProductsExtractor from "./pages/ProductsExtractor";
 import ContentHealth from "./pages/ContentHealth";
+import Affiliate from "./pages/Affiliate";
 import NotFound from "./pages/NotFound";
 import "./App.css";
 
@@ -31,6 +33,7 @@ function App() {
           <AuthProvider>
             <MultiStoreProvider>
               <SeoPluginProvider>
+                <ReferralTracker />
                 <Toaster />
                 <Routes>
                   <Route path="/" element={<Index />} />
@@ -45,6 +48,7 @@ function App() {
                   <Route path="/payment-success" element={<PaymentSuccess />} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/blog/:slug" element={<BlogPost />} />
+                  <Route path="/affiliate" element={<Affiliate />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </SeoPluginProvider>

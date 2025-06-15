@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { useReferralCode } from '@/hooks/useReferralCode';
 import { Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -15,6 +16,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useAuth();
+  const { referralCode, clearReferralCode } = useReferralCode();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +35,15 @@ const Register = () => {
     setIsLoading(true);
     
     try {
-      await signUp(email, password);
+      // Include referral code in user metadata if present
+      const metadata = referralCode ? { referral_code: referralCode } : {};
+      
+      await signUp(email, password, metadata);
+      
+      // Clear referral code after successful signup
+      if (referralCode) {
+        clearReferralCode();
+      }
     } catch (error: any) {
       setError(error.message || 'An error occurred during registration');
     } finally {
@@ -58,7 +68,14 @@ const Register = () => {
         <Card>
           <CardHeader>
             <CardTitle>Create an Account</CardTitle>
-            <CardDescription>Sign up to start optimizing your product content</CardDescription>
+            <CardDescription>
+              Sign up to start optimizing your product content
+              {referralCode && (
+                <div className="mt-2 text-sm text-green-600 bg-green-50 p-2 rounded">
+                  🎉 You're signing up with referral code: <strong>{referralCode}</strong>
+                </div>
+              )}
+            </CardDescription>
           </CardHeader>
           
           <form onSubmit={handleSubmit}>
