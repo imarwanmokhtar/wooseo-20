@@ -18,18 +18,43 @@ const CONTENT_FIELDS: ContentField[] = [
   { name: 'permalink', required: false }
 ];
 
+// SEO plugin field mappings for better detection
+const SEO_FIELD_MAPPINGS = {
+  meta_title: {
+    rankmath: ['rank_math_title'],
+    yoast: ['_yoast_wpseo_title'],
+    aioseo: ['_aioseo_title'],
+    universal: ['seo_title', 'meta_title', 'product_seo_title']
+  },
+  meta_description: {
+    rankmath: ['rank_math_description'],
+    yoast: ['_yoast_wpseo_metadesc'],
+    aioseo: ['_aioseo_description'],
+    universal: ['seo_description', 'meta_description', 'product_seo_description']
+  },
+  focus_keywords: {
+    rankmath: ['rank_math_focus_keyword'],
+    yoast: ['_yoast_wpseo_focuskw', '_yoast_wpseo_focuskeywords', '_yoast_wpseo_keywords'],
+    aioseo: ['_aioseo_focus_keyword', '_aioseo_keyphrases'],
+    universal: ['focus_keywords', 'seo_keywords', 'product_seo_keywords']
+  }
+};
+
 class ContentHealthAnalyzer {
-  analyzeBatch(products: any[]): ProductContentHealth[] {
-    return products.map(product => this.analyzeProduct(product));
+  analyzeBatch(products: any[], seoPlugin?: string | null): ProductContentHealth[] {
+    console.log(`Analyzing ${products.length} products for content health with SEO plugin: ${seoPlugin || 'universal'}`);
+    return products.map(product => this.analyzeProduct(product, seoPlugin));
   }
 
-  analyzeProduct(product: any): ProductContentHealth {
+  analyzeProduct(product: any, seoPlugin?: string | null): ProductContentHealth {
     const checks: ContentHealthCheck[] = [];
     const missingFields: string[] = [];
 
+    console.log(`Analyzing product: ${product.name} (ID: ${product.id}) with plugin: ${seoPlugin || 'universal'}`);
+
     // Check each content field
     CONTENT_FIELDS.forEach(field => {
-      const check = this.checkField(product, field);
+      const check = this.checkField(product, field, seoPlugin);
       checks.push(check);
       
       if (check.status === 'missing' || check.status === 'poor') {
@@ -39,6 +64,9 @@ class ContentHealthAnalyzer {
 
     // Determine overall status
     const overallStatus = this.determineOverallStatus(checks);
+    const seoScore = this.calculateSeoScore(checks);
+
+    console.log(`Product ${product.name} analysis complete - Status: ${overallStatus}, Score: ${seoScore}%, Missing: ${missingFields.join(', ')}`);
 
     return {
       product_id: product.id,
@@ -47,37 +75,91 @@ class ContentHealthAnalyzer {
       missing_fields: missingFields,
       checks,
       last_checked: new Date().toISOString(),
-      seo_score: this.calculateSeoScore(checks)
+      seo_score: seoScore
     };
   }
 
-  private checkField(product: any, field: ContentField): ContentHealthCheck {
+  private extractMetaFromProduct(product: any, fieldMappings: string[]): string {
+    // First check meta_data array for plugin-specific fields
+    if (product.meta_data && Array.isArray(product.meta_data)) {
+      for (const mapping of fieldMappings) {
+        const metaItem = product.meta_data.find((meta: any) => meta.key === mapping);
+        if (metaItem && metaItem.value && metaItem.value.trim()) {
+          console.log(`Found ${mapping}: ${metaItem.value.substring(0, 50)}...`);
+          return metaItem.value.trim();
+        }
+      }
+    }
+
+    // Fallback to direct property access
+    for (const mapping of fieldMappings) {
+      if (product[mapping] && typeof product[mapping] === 'string' && product[mapping].trim()) {
+        console.log(`Found direct property ${mapping}: ${product[mapping].substring(0, 50)}...`);
+        return product[mapping].trim();
+      }
+    }
+
+    return '';
+  }
+
+  private checkField(product: any, field: ContentField, seoPlugin?: string | null): ContentHealthCheck {
     const fieldName = field.name;
     let value: string = '';
 
-    // Extract field value based on field name
+    // Extract field value based on field name and SEO plugin
     switch (fieldName) {
       case 'meta_title':
-        value = product.name || '';
+        if (seoPlugin && SEO_FIELD_MAPPINGS.meta_title[seoPlugin as keyof typeof SEO_FIELD_MAPPINGS.meta_title]) {
+          value = this.extractMetaFromProduct(product, SEO_FIELD_MAPPINGS.meta_title[seoPlugin as keyof typeof SEO_FIELD_MAPPINGS.meta_title]);
+        }
+        if (!value) {
+          value = this.extractMetaFromProduct(product, SEO_FIELD_MAPPINGS.meta_title.universal);
+        }
+        if (!value) {
+          value = product.name || '';
+        }
         break;
+
       case 'meta_description':
-        value = product.short_description || '';
+        if (seoPlugin && SEO_FIELD_MAPPINGS.meta_description[seoPlugin as keyof typeof SEO_FIELD_MAPPINGS.meta_description]) {
+          value = this.extractMetaFromProduct(product, SEO_FIELD_MAPPINGS.meta_description[seoPlugin as keyof typeof SEO_FIELD_MAPPINGS.meta_description]);
+        }
+        if (!value) {
+          value = this.extractMetaFromProduct(product, SEO_FIELD_MAPPINGS.meta_description.universal);
+        }
+        if (!value) {
+          value = product.short_description || '';
+        }
         break;
+
+      case 'focus_keywords':
+        if (seoPlugin && SEO_FIELD_MAPPINGS.focus_keywords[seoPlugin as keyof typeof SEO_FIELD_MAPPINGS.focus_keywords]) {
+          value = this.extractMetaFromProduct(product, SEO_FIELD_MAPPINGS.focus_keywords[seoPlugin as keyof typeof SEO_FIELD_MAPPINGS.focus_keywords]);
+        }
+        if (!value) {
+          value = this.extractMetaFromProduct(product, SEO_FIELD_MAPPINGS.focus_keywords.universal);
+        }
+        if (!value) {
+          value = product.tags?.map((tag: any) => tag.name).join(', ') || '';
+        }
+        break;
+
       case 'short_description':
         value = product.short_description || '';
         break;
+
       case 'long_description':
         value = product.description || '';
         break;
+
       case 'alt_text':
         value = product.images?.[0]?.alt || '';
         break;
-      case 'focus_keywords':
-        value = product.tags?.map((tag: any) => tag.name).join(', ') || '';
-        break;
+
       case 'permalink':
         value = product.slug || '';
         break;
+
       default:
         value = '';
     }

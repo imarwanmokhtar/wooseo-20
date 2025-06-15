@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import BulkHealthRegenerateDialog from './BulkHealthRegenerateDialog';
 import { AIModel } from './ModelSelector';
 import { toast } from 'sonner';
+import { useSeoPlugin } from '@/contexts/SeoPluginContext';
 
 interface ContentHealthTableProps {
   healthResults: ProductContentHealth[];
@@ -39,6 +40,7 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
 }) => {
   const { user, credits, refreshCredits } = useAuth();
   const { activeStore } = useMultiStore();
+  const { selectedPlugin } = useSeoPlugin();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'needs_attention' | 'critical'>('all');
@@ -95,6 +97,12 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
       toast.error("User and active store required");
       return;
     }
+
+    if (!selectedPlugin) {
+      toast.error("Please select your SEO plugin first");
+      return;
+    }
+
     const productList = incompleteResults;
     const totalToProcess = productList.length;
     const perProductCost = modelCreditCost[selectedModel];
@@ -108,6 +116,8 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
     setBulkLoading(true);
     let processed = 0;
     let failed = 0;
+
+    console.log(`Starting bulk regeneration for ${totalToProcess} products using ${selectedPlugin} SEO plugin`);
 
     // We'll loop over each product and trigger `generateSeoContent` (as in details page, for full regeneration)
     for (const result of productList) {
@@ -130,12 +140,18 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
           m.generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id)
         );
 
-        // Save new content back to WooCommerce (reuse same logic as ProductDetailsPage)
-        await import('@/services/wooCommerceApi').then(api =>
-          api.updateProductWithSeoContent(credentials, product.id, newContent)
+        // Save new content back to WooCommerce using the selected SEO plugin
+        const updateResult = await import('@/services/wooCommerceApi').then(api =>
+          api.updateProductWithSeoContent(credentials, product.id, newContent, selectedPlugin)
         );
 
-        processed++;
+        if (updateResult.success) {
+          processed++;
+          console.log(`Successfully regenerated content for product ${product.name} with ${selectedPlugin} SEO plugin`);
+        } else {
+          failed++;
+          console.error(`Failed to update product ${product.name} in WooCommerce`);
+        }
       } catch (err) {
         failed++;
         console.error('Bulk regeneration error:', err);
@@ -147,7 +163,11 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
 
     setBulkLoading(false);
     setBulkDialogOpen(false);
-    toast.success(`Regenerated ${processed} products successfully${failed ? ` (${failed} failed)` : ""}.`);
+    
+    const successMessage = `Regenerated ${processed} products successfully using ${selectedPlugin === 'rankmath' ? 'RankMath' : selectedPlugin === 'yoast' ? 'Yoast SEO' : selectedPlugin === 'aioseo' ? 'All in One SEO' : 'Universal'} fields${failed ? ` (${failed} failed)` : ""}.`;
+    toast.success(successMessage);
+    console.log(successMessage);
+    
     onRefresh();
     onCreditsUpdated();
   }
