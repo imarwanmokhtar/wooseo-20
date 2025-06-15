@@ -94,6 +94,21 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
   // --- FIX: Use helper to extract meta fields safely from product ---
   const extractedMeta = extractMetaFromProduct(product);
 
+  // Restore the SEO content state and setter
+  const [seoContent, setSeoContent] = useState<SeoContent>({
+    id: 0,
+    product_id: product.id,
+    product_name: product.name,
+    user_id: user?.id || '',
+    short_description: product.short_description || '',
+    long_description: product.description || '',
+    meta_title: extractedMeta.meta_title || (product.seo_content?.meta_title ?? "") || "",
+    meta_description: extractedMeta.meta_description || (product.seo_content?.meta_description ?? "") || "",
+    alt_text: product.images?.[0]?.alt || "",
+    focus_keywords: extractedMeta.focus_keywords || (product.seo_content?.focus_keywords ?? "") || "",
+    permalink: product.slug || "",
+  });
+
   // New Model Selection State
   const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o-mini');
 
