@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import { updateProductWithSeoContent, getWooCommerceCredentials } from '@/servic
 import { toast } from 'sonner';
 import TagInput from './TagInput';
 import ModelSelector, { AIModel } from './ModelSelector';
+import { modelConfig } from './ModelSelector';
 
 async function incrementStoreCredits(userId: string, storeId: string, amount: number) {
   // Directly use Supabase to update used_credits for a store, simple approach
@@ -97,6 +97,27 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
       // Increment for store
       await incrementStoreCredits(user.id, activeStore.id, regenFields);
       await refreshCredits(); // update credit display after mutation
+    } catch (err) {
+      console.error("Error decrementing credits:", err);
+    }
+  }
+
+  // New: Model credit cost lookup
+  function getModelCreditCost(model: AIModel) {
+    return modelConfig[model]?.credits || 1;
+  }
+
+  // Handler for NEW credit deduction per full regeneration (per model, not per field)
+  async function handleCreditConsumptionForModel(totalCost: number) {
+    if (!user || !activeStore) return;
+    if (credits < totalCost) {
+      toast.error("You don't have enough credits.");
+      return;
+    }
+    try {
+      await updateCredits(credits - totalCost);
+      await incrementStoreCredits(user.id, activeStore.id, totalCost);
+      await refreshCredits();
     } catch (err) {
       console.error("Error decrementing credits:", err);
     }
@@ -185,15 +206,16 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     }
   };
 
-  // Regenerate All
+  // Regenerate All (COSTS: depends on selected model, single charge per product)
   const handleRegenerateAll = async () => {
     if (!user || !activeStore) {
       toast.error('User authentication or store selection required');
       return;
     }
-    const numFields = FIELD_KEYS.length;
-    if (credits < numFields) {
-      toast.error(`You don't have enough credits to regenerate all fields (${numFields} needed).`);
+    // Use the correct model cost!
+    const cost = getModelCreditCost(selectedModel);
+    if (credits < cost) {
+      toast.error(`You don't have enough credits to regenerate all fields (${cost} needed).`);
       return;
     }
     setRegenerating('all');
@@ -201,6 +223,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
       const prompt = `Generate comprehensive SEO content for this WooCommerce product: ${product.name}. Description: ${product.description}. Price: ${product.price}`;
       const newContent = await generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id);
 
+      // Ensure all fields are updated from the AI response!
       setSeoContent(prev => ({
         ...prev,
         meta_title: newContent.meta_title || prev.meta_title,
@@ -212,7 +235,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
         permalink: newContent.permalink || prev.permalink
       }));
 
-      await handleCreditConsumption(numFields); // Deduct for all fields (7)
+      await handleCreditConsumptionForModel(cost); // Deduct credits ONCE per product
       toast.success('All fields regenerated successfully');
     } catch (error) {
       console.error('Error regenerating all fields:', error);
@@ -222,7 +245,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     }
   };
 
-  const canAffordRegenerateAll = credits >= FIELD_KEYS.length;
+  const canAffordRegenerateAll = credits >= getModelCreditCost(selectedModel);
   const canAffordField = credits >= 1;
 
   // Renders update and regenerate buttons for each field
@@ -571,4 +594,3 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
 };
 
 export default ProductDetailsPage;
-
