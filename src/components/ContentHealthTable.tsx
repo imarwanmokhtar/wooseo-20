@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle, AlertTriangle, XCircle, Search, RefreshCw, Eye } from 'lucide-react';
 import { ProductContentHealth } from '@/types/contentHealth';
+import { Product } from '@/types';
 import Pagination from './Pagination';
+import ProductDetailsPage from './ProductDetailsPage';
+import { fetchProducts, getWooCommerceCredentials } from '@/services/wooCommerceApi';
+import { useMultiStore } from '@/contexts/MultiStoreContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ContentHealthTableProps {
   healthResults: ProductContentHealth[];
@@ -22,9 +26,13 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
   onRefresh,
   onCreditsUpdated 
 }) => {
+  const { user } = useAuth();
+  const { activeStore } = useMultiStore();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'needs_attention' | 'critical'>('all');
+  const [selectedProduct, setSelectedProduct] = useState<{ product: Product; healthData: ProductContentHealth } | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState<number | null>(null);
 
   // Filter and search logic
   const filteredResults = useMemo(() => {
@@ -57,6 +65,60 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
   React.useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, searchTerm]);
+
+  const handleViewDetails = async (healthData: ProductContentHealth) => {
+    if (!activeStore || !user) {
+      console.error('No active store or user');
+      return;
+    }
+
+    setLoadingProduct(healthData.product_id);
+    try {
+      const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
+      if (!credentials) {
+        console.error('No credentials found');
+        return;
+      }
+
+      // Fetch the full product details
+      const { products } = await fetchProducts(credentials, {
+        include: [healthData.product_id],
+        per_page: 1
+      });
+
+      if (products.length > 0) {
+        setSelectedProduct({
+          product: products[0],
+          healthData: healthData
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+    } finally {
+      setLoadingProduct(null);
+    }
+  };
+
+  const handleBackToTable = () => {
+    setSelectedProduct(null);
+  };
+
+  const handleContentUpdated = () => {
+    onRefresh();
+    onCreditsUpdated();
+  };
+
+  // If a product is selected, show the details page
+  if (selectedProduct) {
+    return (
+      <ProductDetailsPage
+        product={selectedProduct.product}
+        healthData={selectedProduct.healthData}
+        onBack={handleBackToTable}
+        onContentUpdated={handleContentUpdated}
+      />
+    );
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -219,9 +281,14 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewDetails(result)}
+                      disabled={loadingProduct === result.product_id}
+                    >
                       <Eye className="h-4 w-4 mr-2" />
-                      View Details
+                      {loadingProduct === result.product_id ? 'Loading...' : 'View Details'}
                     </Button>
                   </TableCell>
                 </TableRow>
