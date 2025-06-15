@@ -67,6 +67,8 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // --- FIX: Use any meta/SEO fields that exist on the product or its custom fields ---
   const [seoContent, setSeoContent] = useState<SeoContent>({
     id: 0,
     product_id: product.id,
@@ -74,11 +76,20 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     user_id: user?.id || '',
     short_description: product.short_description || '',
     long_description: product.description || '',
-    meta_title: '',
-    meta_description: '',
-    alt_text: product.images?.[0]?.alt || '',
-    focus_keywords: '',
-    permalink: product.slug || ''
+    meta_title:
+      (product as any).meta_title ||
+      (product.seo_content?.meta_title ?? "") ||
+      "",
+    meta_description:
+      (product as any).meta_description ||
+      (product.seo_content?.meta_description ?? "") ||
+      "",
+    alt_text: product.images?.[0]?.alt || "",
+    focus_keywords:
+      (product as any).focus_keywords ||
+      (product.seo_content?.focus_keywords ?? "") ||
+      "",
+    permalink: product.slug || "",
   });
 
   // New Model Selection State
@@ -104,17 +115,19 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
 
   // New: Model credit cost lookup
   function getModelCreditCost(model: AIModel) {
-    // Use the same mapping as the dashboard--update this mapping as needed
-    switch(model) {
+    // Must support all ModelSelector keys
+    switch (model) {
       case "gpt-4o-mini":
-      case "claude-3.5-haiku":
         return 1;
       case "gpt-4o":
         return 2;
-      case "gpt-4.1-2025-04-14":
+      case "gpt-4.1":
         return 3;
+      case "gpt-3.5-turbo":
+        return 1;
+      case "gemini-2.0-flash":
+        return 1;
       default:
-        // fallback to 1 if new models are added
         return 1;
     }
   }
