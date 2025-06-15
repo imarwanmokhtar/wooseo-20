@@ -5,16 +5,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
+interface UserDetails {
+  email: string;
+  id: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   credits: number;
+  userDetails: UserDetails | null;
   signUp: (email: string, password: string, metadata?: any) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
   updateCredits: (newCredits: number) => void;
+  refreshCredits: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState(0);
+  const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setUserDetails({
+          email: session.user.email || '',
+          id: session.user.id
+        });
         fetchUserCredits(session.user.id);
       }
       setLoading(false);
@@ -54,8 +67,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       
       if (session?.user) {
+        setUserDetails({
+          email: session.user.email || '',
+          id: session.user.id
+        });
         fetchUserCredits(session.user.id);
       } else {
+        setUserDetails(null);
         setCredits(0);
       }
     });
@@ -79,6 +97,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCredits(data?.credits || 0);
     } catch (error) {
       console.error('Error in fetchUserCredits:', error);
+    }
+  };
+
+  const refreshCredits = async () => {
+    if (user?.id) {
+      await fetchUserCredits(user.id);
     }
   };
 
@@ -140,6 +164,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success('Check your email for the password reset link!');
   };
 
+  // Alias for resetPassword to maintain compatibility
+  const forgotPassword = resetPassword;
+
   const updateCredits = (newCredits: number) => {
     setCredits(newCredits);
   };
@@ -149,11 +176,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     loading,
     credits,
+    userDetails,
     signUp,
     signIn,
     signOut,
     resetPassword,
+    forgotPassword,
     updateCredits,
+    refreshCredits,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
