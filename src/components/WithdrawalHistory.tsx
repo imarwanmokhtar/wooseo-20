@@ -20,6 +20,8 @@ interface WithdrawalHistoryProps {
   affiliateId: string;
 }
 
+const allowedStatus = ['pending', 'approved', 'processed', 'rejected'] as const;
+
 const WithdrawalHistory: React.FC<WithdrawalHistoryProps> = ({ affiliateId }) => {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,23 @@ const WithdrawalHistory: React.FC<WithdrawalHistoryProps> = ({ affiliateId }) =>
         return;
       }
 
-      setWithdrawals(data || []);
+      // Safely cast status to allowed literal types
+      const requests: WithdrawalRequest[] = (data || [])
+        .map((item: any) => {
+          const status: WithdrawalRequest['status'] =
+            allowedStatus.includes(item.status)
+              ? item.status
+              : 'pending';
+          return {
+            id: item.id,
+            amount: Number(item.amount),
+            status,
+            admin_notes: item.admin_notes,
+            created_at: item.created_at,
+            processed_at: item.processed_at,
+          };
+        });
+      setWithdrawals(requests);
     } catch (error) {
       console.error('Error in fetchWithdrawals:', error);
       setError('An unexpected error occurred');
