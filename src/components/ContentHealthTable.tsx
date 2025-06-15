@@ -14,6 +14,7 @@ import { useMultiStore } from '@/contexts/MultiStoreContext';
 import { useAuth } from '@/contexts/AuthContext';
 import BulkHealthRegenerateDialog from './BulkHealthRegenerateDialog';
 import ModelSelector, { AIModel } from './ModelSelector';
+import { toast } from '@/hooks/use-toast';
 
 interface ContentHealthTableProps {
   healthResults: ProductContentHealth[];
