@@ -263,6 +263,7 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
         onConfirm={handleBulkRegenerate}
         incompleteCount={incompleteResults.length}
         userCredits={credits}
+        loading={bulkLoading}
       />
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
         <div className="flex-1">

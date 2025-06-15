@@ -5,14 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Settings, Download } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
 import { useMultiStore } from '@/contexts/MultiStoreContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProducts } from '@/services/wooCommerceApi';
 import { contentHealthAnalyzer } from '@/services/contentHealthService';
 import { ProductContentHealth, ContentHealthSummary } from '@/types/contentHealth';
 import ContentHealthTable from './ContentHealthTable';
-import ContentHealthSettings from './ContentHealthSettings';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -161,7 +160,6 @@ const ContentHealthDashboard = () => {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -304,10 +302,6 @@ const ContentHealthDashboard = () => {
               onRefresh={scanProducts}
               onCreditsUpdated={handleCreditsUpdated}
             />
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <ContentHealthSettings />
           </TabsContent>
         </Tabs>
       )}

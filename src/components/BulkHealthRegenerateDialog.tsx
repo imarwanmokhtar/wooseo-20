@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import ModelSelector, { AIModel } from './ModelSelector';
+import { Loader2 } from 'lucide-react';
 
 interface BulkHealthRegenerateDialogProps {
   open: boolean;
@@ -10,6 +11,7 @@ interface BulkHealthRegenerateDialogProps {
   onConfirm: (selectedModel: AIModel) => void;
   incompleteCount: number;
   userCredits: number;
+  loading: boolean;
 }
 
 const modelCreditCost: Record<AIModel, number> = {
@@ -25,14 +27,15 @@ const BulkHealthRegenerateDialog: React.FC<BulkHealthRegenerateDialogProps> = ({
   onClose,
   onConfirm,
   incompleteCount,
-  userCredits
+  userCredits,
+  loading
 }) => {
   const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o-mini');
   const totalCost = incompleteCount * modelCreditCost[selectedModel];
   const canAfford = userCredits >= totalCost;
 
   return (
-    <Dialog open={open} onOpenChange={open => { if (!open) onClose(); }}>
+    <Dialog open={open} onOpenChange={open => { if (!open && !loading) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Regenerate All Incomplete Products</DialogTitle>
@@ -42,19 +45,21 @@ const BulkHealthRegenerateDialog: React.FC<BulkHealthRegenerateDialogProps> = ({
             <span className="font-medium">{incompleteCount} products selected</span>
             <span className="ml-2 text-sm text-gray-500">(status: Needs Attention or Critical)</span>
           </div>
-          <div>
-            <ModelSelector
-              selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
-              userCredits={userCredits}
-            />
-          </div>
-          <div>
-            <span>Total cost: </span>
-            <span className={`font-semibold ${canAfford ? "text-black" : "text-red-600"}`}>
-              {totalCost} credit{totalCost !== 1 ? "s" : ""}
-            </span>
-          </div>
+          <fieldset disabled={loading} className="space-y-4">
+            <div>
+              <ModelSelector
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+                userCredits={userCredits}
+              />
+            </div>
+            <div>
+              <span>Total cost: </span>
+              <span className={`font-semibold ${canAfford ? "text-black" : "text-red-600"}`}>
+                {totalCost} credit{totalCost !== 1 ? "s" : ""}
+              </span>
+            </div>
+          </fieldset>
           {!canAfford && (
             <div className="text-red-500 text-sm">
               Not enough credits available. Please purchase more credits to continue.
@@ -62,12 +67,13 @@ const BulkHealthRegenerateDialog: React.FC<BulkHealthRegenerateDialogProps> = ({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
           <Button 
-            disabled={!canAfford}
+            disabled={!canAfford || loading}
             onClick={() => onConfirm(selectedModel)}
           >
-            Regenerate All
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {loading ? "Regenerating..." : "Regenerate All"}
           </Button>
         </DialogFooter>
       </DialogContent>
