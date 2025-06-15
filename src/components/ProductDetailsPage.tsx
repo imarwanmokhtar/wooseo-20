@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,29 @@ import { generateSeoContent } from '@/services/aiGenerationService';
 import { updateProductWithSeoContent, getWooCommerceCredentials } from '@/services/wooCommerceApi';
 import { toast } from 'sonner';
 import TagInput from './TagInput';
+import ModelSelector, { AIModel } from './ModelSelector';
+
+async function incrementStoreCredits(userId: string, storeId: string, amount: number) {
+  // Directly use Supabase to update used_credits for a store, simple approach
+  const { supabase } = await import('@/integrations/supabase/client');
+  const { error } = await supabase
+    .from('woocommerce_credentials')
+    .update({ used_credits: (await (async () => {
+      const { data } = await supabase
+        .from('woocommerce_credentials')
+        .select('used_credits')
+        .eq('id', storeId)
+        .maybeSingle();
+      return (data?.used_credits || 0) + amount;
+    })()) })
+    .eq('id', storeId)
+    .eq('user_id', userId);
+
+  if (error) {
+    toast.error('Failed to update store usage');
+    console.error(error);
+  }
+}
 
 interface ProductDetailsPageProps {
   product: Product;
@@ -23,13 +46,23 @@ interface ProductDetailsPageProps {
   onContentUpdated: () => void;
 }
 
+const FIELD_KEYS: Array<keyof SeoContent> = [
+  'meta_title',
+  'meta_description',
+  'permalink',
+  'focus_keywords',
+  'short_description',
+  'long_description',
+  'alt_text'
+];
+
 const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
   product,
   healthData,
   onBack,
   onContentUpdated
 }) => {
-  const { user } = useAuth();
+  const { user, credits, updateCredits, refreshCredits } = useAuth();
   const { activeStore } = useMultiStore();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
@@ -48,6 +81,27 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     permalink: product.slug || ''
   });
 
+  // New Model Selection State
+  const [selectedModel, setSelectedModel] = useState<AIModel>('gpt-4o-mini');
+
+  // Handler for per-field credit/store increment/decrement (run after each generate op)
+  async function handleCreditConsumption(regenFields: number) {
+    if (!user || !activeStore) return;
+    if (credits < regenFields) {
+      toast.error("You don't have enough credits.");
+      return;
+    }
+    // Deduct from user
+    try {
+      await updateCredits(credits - regenFields);
+      // Increment for store
+      await incrementStoreCredits(user.id, activeStore.id, regenFields);
+      await refreshCredits(); // update credit display after mutation
+    } catch (err) {
+      console.error("Error decrementing credits:", err);
+    }
+  }
+
   const handleFieldChange = (field: string, value: string) => {
     setSeoContent(prev => ({ ...prev, [field]: value }));
   };
@@ -57,12 +111,12 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     setSeoContent(prev => ({ ...prev, focus_keywords: keywordsString }));
   };
 
+  // Called when hitting the new Update button (single field)
   const handleSaveField = async (field: string) => {
     if (!activeStore || !user) {
       toast.error('Store or user authentication required');
       return;
     }
-
     setSaving(true);
     try {
       const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
@@ -70,13 +124,11 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
         toast.error('WooCommerce credentials not found');
         return;
       }
-
       const success = await updateProductWithSeoContent(
         credentials,
         product.id,
         seoContent
       );
-
       if (success) {
         toast.success(`${field.replace('_', ' ')} updated successfully`);
         setEditingField(null);
@@ -92,17 +144,21 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     }
   };
 
+  // Single field regeneration
   const handleRegenerateField = async (fieldName: string) => {
     if (!user || !activeStore) {
       toast.error('User authentication or store selection required');
       return;
     }
-    
+    if (credits < 1) {
+      toast.error("You don't have enough credits.");
+      return;
+    }
     setRegenerating(fieldName);
     try {
       const prompt = `Generate SEO content for this WooCommerce product: ${product.name}. Description: ${product.description}. Price: ${product.price}`;
-      const newContent = await generateSeoContent(product, prompt, user.id, 'gpt-4o-mini', activeStore.id);
-      
+      const newContent = await generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id);
+
       const fieldMap: { [key: string]: keyof SeoContent } = {
         'meta_title': 'meta_title',
         'meta_description': 'meta_description',
@@ -112,13 +168,13 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
         'focus_keywords': 'focus_keywords',
         'permalink': 'permalink'
       };
-
       const field = fieldMap[fieldName];
       if (field && newContent[field]) {
         setSeoContent(prev => ({
           ...prev,
           [field]: newContent[field]
         }));
+        await handleCreditConsumption(1); // Deduct 1 credit
         toast.success(`${fieldName.replace('_', ' ')} regenerated successfully`);
       }
     } catch (error) {
@@ -129,17 +185,22 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     }
   };
 
+  // Regenerate All
   const handleRegenerateAll = async () => {
     if (!user || !activeStore) {
       toast.error('User authentication or store selection required');
       return;
     }
-    
+    const numFields = FIELD_KEYS.length;
+    if (credits < numFields) {
+      toast.error(`You don't have enough credits to regenerate all fields (${numFields} needed).`);
+      return;
+    }
     setRegenerating('all');
     try {
       const prompt = `Generate comprehensive SEO content for this WooCommerce product: ${product.name}. Description: ${product.description}. Price: ${product.price}`;
-      const newContent = await generateSeoContent(product, prompt, user.id, 'gpt-4o-mini', activeStore.id);
-      
+      const newContent = await generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id);
+
       setSeoContent(prev => ({
         ...prev,
         meta_title: newContent.meta_title || prev.meta_title,
@@ -150,7 +211,8 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
         focus_keywords: newContent.focus_keywords || prev.focus_keywords,
         permalink: newContent.permalink || prev.permalink
       }));
-      
+
+      await handleCreditConsumption(numFields); // Deduct for all fields (7)
       toast.success('All fields regenerated successfully');
     } catch (error) {
       console.error('Error regenerating all fields:', error);
@@ -160,6 +222,10 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     }
   };
 
+  const canAffordRegenerateAll = credits >= FIELD_KEYS.length;
+  const canAffordField = credits >= 1;
+
+  // Renders update and regenerate buttons for each field
   const renderEditableField = (
     fieldName: string,
     label: string,
@@ -169,6 +235,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
   ) => {
     const isEditing = editingField === fieldName;
     const isRegeneratingField = regenerating === fieldName || regenerating === 'all';
+    const fieldIsMissing = healthData.missing_fields.includes(fieldName);
 
     return (
       <Card>
@@ -180,7 +247,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={() => handleRegenerateField(fieldName)}
-                disabled={isRegeneratingField}
+                disabled={isRegeneratingField || !canAffordField}
               >
                 <RefreshCw className={`h-3 w-3 mr-1 ${isRegeneratingField ? 'animate-spin' : ''}`} />
                 Regenerate
@@ -220,7 +287,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
                   disabled={saving}
                 >
                   <Save className="h-3 w-3 mr-1" />
-                  {saving ? 'Saving...' : 'Save'}
+                  {saving ? 'Saving...' : 'Update'}
                 </Button>
                 <Button 
                   size="sm" 
@@ -233,7 +300,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 p-3 rounded border min-h-[60px] cursor-pointer hover:bg-gray-100 transition-colors">
+            <div className={`bg-gray-50 p-3 rounded border min-h-[60px] cursor-pointer hover:bg-gray-100 transition-colors ${fieldIsMissing ? 'border-red-400' : ''}`}>
               {value ? (
                 isTextarea ? (
                   <div className="whitespace-pre-wrap text-sm">{value}</div>
@@ -250,11 +317,12 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
     );
   };
 
+  // Same as above, with TagInput and dedicated update button
   const renderFocusKeywordsField = () => {
     const isEditing = editingField === 'focus_keywords';
     const isRegeneratingField = regenerating === 'focus_keywords' || regenerating === 'all';
     const keywords = seoContent.focus_keywords ? seoContent.focus_keywords.split(',').map(k => k.trim()).filter(k => k) : [];
-
+    const fieldIsMissing = healthData.missing_fields.includes('focus_keywords');
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -265,7 +333,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={() => handleRegenerateField('focus_keywords')}
-                disabled={isRegeneratingField}
+                disabled={isRegeneratingField || !canAffordField}
               >
                 <RefreshCw className={`h-3 w-3 mr-1 ${isRegeneratingField ? 'animate-spin' : ''}`} />
                 Regenerate
@@ -296,11 +364,11 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
                 disabled={saving}
               >
                 <Save className="h-3 w-3 mr-1" />
-                {saving ? 'Saving...' : 'Save Keywords'}
+                {saving ? 'Saving...' : 'Update Keywords'}
               </Button>
             </div>
           ) : (
-            <div className="bg-gray-50 p-3 rounded border min-h-[60px] cursor-pointer hover:bg-gray-100 transition-colors">
+            <div className={`bg-gray-50 p-3 rounded border min-h-[60px] cursor-pointer hover:bg-gray-100 transition-colors ${fieldIsMissing ? 'border-red-400' : ''}`}>
               {keywords.length > 0 ? (
                 <div className="flex flex-wrap gap-1">
                   {keywords.map((keyword, index) => (
@@ -321,13 +389,13 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
+      {/* Model selector and header */}
+      <div className="flex flex-col lg:flex-row items-center gap-4">
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Health Analysis
         </Button>
-        <div className="flex-1">
+        <div className="flex-1 flex flex-col lg:flex-row gap-2 items-center">
           <h1 className="text-2xl font-bold">{product.name}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline">ID: {product.id}</Badge>
@@ -338,13 +406,20 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
             <span className="text-sm text-gray-500">SEO Score: {healthData.seo_score}%</span>
           </div>
         </div>
-        <Button 
-          onClick={handleRegenerateAll}
-          disabled={regenerating === 'all'}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${regenerating === 'all' ? 'animate-spin' : ''}`} />
-          Regenerate All
-        </Button>
+        <div className="flex flex-col gap-2 items-end">
+          <ModelSelector
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            userCredits={credits}
+          />
+          <Button 
+            onClick={handleRegenerateAll}
+            disabled={regenerating === 'all' || !canAffordRegenerateAll}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${regenerating === 'all' ? 'animate-spin' : ''}`} />
+            Regenerate All ({FIELD_KEYS.length} Credits)
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -406,6 +481,10 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
                     View Product
                   </a>
                 </Button>
+              </div>
+              <Separator className="my-2" />
+              <div className="text-xs text-gray-700 font-semibold">
+                Available Credits: <span className="text-black font-bold">{credits}</span>
               </div>
             </CardContent>
           </Card>
@@ -492,3 +571,4 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
 };
 
 export default ProductDetailsPage;
+
