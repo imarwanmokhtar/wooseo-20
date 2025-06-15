@@ -104,7 +104,19 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
 
   // New: Model credit cost lookup
   function getModelCreditCost(model: AIModel) {
-    return modelConfig[model]?.credits || 1;
+    // Use the same mapping as the dashboard--update this mapping as needed
+    switch(model) {
+      case "gpt-4o-mini":
+      case "claude-3.5-haiku":
+        return 1;
+      case "gpt-4o":
+        return 2;
+      case "gpt-4.1-2025-04-14":
+        return 3;
+      default:
+        // fallback to 1 if new models are added
+        return 1;
+    }
   }
 
   // Handler for NEW credit deduction per full regeneration (per model, not per field)
@@ -212,7 +224,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
       toast.error('User authentication or store selection required');
       return;
     }
-    // Use the correct model cost!
+    // Use correct model cost
     const cost = getModelCreditCost(selectedModel);
     if (credits < cost) {
       toast.error(`You don't have enough credits to regenerate all fields (${cost} needed).`);
@@ -223,7 +235,6 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
       const prompt = `Generate comprehensive SEO content for this WooCommerce product: ${product.name}. Description: ${product.description}. Price: ${product.price}`;
       const newContent = await generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id);
 
-      // Ensure all fields are updated from the AI response!
       setSeoContent(prev => ({
         ...prev,
         meta_title: newContent.meta_title || prev.meta_title,
@@ -235,7 +246,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
         permalink: newContent.permalink || prev.permalink
       }));
 
-      await handleCreditConsumptionForModel(cost); // Deduct credits ONCE per product
+      await handleCreditConsumptionForModel(cost); // Deduct correct model cost
       toast.success('All fields regenerated successfully');
     } catch (error) {
       console.error('Error regenerating all fields:', error);
@@ -440,7 +451,7 @@ const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
             disabled={regenerating === 'all' || !canAffordRegenerateAll}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${regenerating === 'all' ? 'animate-spin' : ''}`} />
-            Regenerate All ({FIELD_KEYS.length} Credits)
+            Regenerate All ({getModelCreditCost(selectedModel)} Credit{getModelCreditCost(selectedModel) > 1 ? 's' : ''})
           </Button>
         </div>
       </div>
