@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      affiliates: {
+        Row: {
+          affiliate_code: string
+          commission_rate: number | null
+          created_at: string | null
+          id: string
+          status: Database["public"]["Enums"]["affiliate_status"] | null
+          total_earnings: number | null
+          total_referrals: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          affiliate_code: string
+          commission_rate?: number | null
+          created_at?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["affiliate_status"] | null
+          total_earnings?: number | null
+          total_referrals?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          affiliate_code?: string
+          commission_rate?: number | null
+          created_at?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["affiliate_status"] | null
+          total_earnings?: number | null
+          total_referrals?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bulk_generation_jobs: {
         Row: {
           batch_size: number | null
@@ -124,6 +160,60 @@ export type Database = {
           },
         ]
       }
+      commissions: {
+        Row: {
+          affiliate_id: string
+          commission_amount: number
+          commission_rate: number
+          created_at: string | null
+          description: string | null
+          id: string
+          paid_at: string | null
+          purchase_amount: number
+          referral_id: string | null
+          status: Database["public"]["Enums"]["commission_status"] | null
+        }
+        Insert: {
+          affiliate_id: string
+          commission_amount: number
+          commission_rate: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          paid_at?: string | null
+          purchase_amount: number
+          referral_id?: string | null
+          status?: Database["public"]["Enums"]["commission_status"] | null
+        }
+        Update: {
+          affiliate_id?: string
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          paid_at?: string | null
+          purchase_amount?: number
+          referral_id?: string | null
+          status?: Database["public"]["Enums"]["commission_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generation_queue: {
         Row: {
           batch_number: number
@@ -204,6 +294,38 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          affiliate_id: string
+          created_at: string | null
+          id: string
+          referral_code: string
+          referred_user_id: string
+        }
+        Insert: {
+          affiliate_id: string
+          created_at?: string | null
+          id?: string
+          referral_code: string
+          referred_user_id: string
+        }
+        Update: {
+          affiliate_id?: string
+          created_at?: string | null
+          id?: string
+          referral_code?: string
+          referred_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -227,6 +349,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      withdrawal_requests: {
+        Row: {
+          admin_notes: string | null
+          affiliate_id: string
+          amount: number
+          created_at: string
+          id: string
+          processed_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          affiliate_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          affiliate_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       woocommerce_credentials: {
         Row: {
@@ -272,10 +435,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_withdrawal_eligibility: {
+        Args: { affiliate_id_param: string; amount_param: number }
+        Returns: boolean
+      }
+      create_commission: {
+        Args: {
+          purchase_user_id: string
+          purchase_amount: number
+          description?: string
+        }
+        Returns: string
+      }
+      generate_affiliate_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      affiliate_status: "pending" | "active" | "suspended" | "inactive"
+      commission_status: "pending" | "paid" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -390,6 +569,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      affiliate_status: ["pending", "active", "suspended", "inactive"],
+      commission_status: ["pending", "paid", "cancelled"],
+    },
   },
 } as const

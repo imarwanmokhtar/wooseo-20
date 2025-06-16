@@ -219,7 +219,7 @@ export function generateSeoMetaData(seoContent: SeoContent, seoPlugin: string | 
       break;
 
     case 'yoast':
-      console.log('Adding Yoast SEO meta fields with all focus keywords');
+      console.log('Adding Yoast SEO meta fields with enhanced focus keyword support');
       metaData.push(
         { key: '_yoast_wpseo_title', value: seoContent.meta_title },
         { key: '_yoast_wpseo_metadesc', value: seoContent.meta_description },
@@ -235,47 +235,57 @@ export function generateSeoMetaData(seoContent: SeoContent, seoPlugin: string | 
         { key: '_yoast_wpseo_twitter-description', value: seoContent.meta_description }
       );
 
-      // Add ALL focus keywords for Yoast SEO - using multiple approaches for better compatibility
+      // Enhanced Yoast SEO focus keywords support
       keywordArray.forEach((keyword, index) => {
-        // Add individual keyword fields
-        metaData.push({ key: `_yoast_wpseo_focuskeyword_${index + 1}`, value: keyword });
-        metaData.push({ key: `_yoast_wpseo_keyword_${index + 1}`, value: keyword });
-        
-        // Yoast Premium additional keyword fields
-        if (index > 0) {
+        // Primary and additional keywords for Yoast SEO Premium
+        if (index === 0) {
+          metaData.push({ key: '_yoast_wpseo_focuskw', value: keyword });
+        } else {
           metaData.push({ key: `_yoast_wpseo_focuskw_${index}`, value: keyword });
+          metaData.push({ key: `_yoast_wpseo_keyword_${index + 1}`, value: keyword });
         }
       });
 
-      // Add all keywords in various formats for maximum compatibility
+      // Add comprehensive keyword fields for maximum Yoast SEO compatibility
       metaData.push(
         { key: '_yoast_wpseo_focuskeywords', value: focusKeywords },
         { key: '_yoast_wpseo_keywords', value: focusKeywords },
         { key: '_yoast_wpseo_focus_keywords', value: focusKeywords },
-        { key: '_yoast_wpseo_additional_keyphrases', value: focusKeywords }
+        { key: '_yoast_wpseo_additional_keyphrases', value: keywordArray.slice(1).join(', ') }
       );
       
-      console.log(`Added ${keywordArray.length} focus keywords to Yoast SEO with multiple field formats`);
-      console.log('Yoast meta fields added:', metaData.filter(m => m.key.includes('yoast')).map(m => `${m.key}: ${m.value}`));
+      console.log(`Enhanced Yoast SEO: Added ${keywordArray.length} focus keywords with premium support`);
       break;
 
     case 'aioseo':
-      console.log('Adding All in One SEO meta fields - NOTE: Custom post types require AIOSEO Pro');
+      console.log('Adding All in One SEO meta fields with enhanced keyword support');
       metaData.push(
         { key: '_aioseo_title', value: seoContent.meta_title },
         { key: '_aioseo_description', value: seoContent.meta_description },
-        { key: '_aioseo_focus_keyword', value: primaryFocusKeyword }
+        { key: '_aioseo_focus_keyword', value: primaryFocusKeyword },
+        { key: '_aioseo_robots_default', value: '1' },
+        { key: '_aioseo_robots_noindex', value: '0' },
+        { key: '_aioseo_robots_nofollow', value: '0' }
       );
 
-      // Add all focus keywords for AIOSEO
+      // Enhanced AIOSEO keyword support
       if (keywordArray.length > 1) {
-        metaData.push({ key: '_aioseo_keyphrases', value: focusKeywords });
+        metaData.push({ key: '_aioseo_keyphrases', value: keywordArray.slice(1).join(', ') });
+        metaData.push({ key: '_aioseo_additional_keywords', value: focusKeywords });
       }
+
+      // AIOSEO Pro fields for better compatibility
+      metaData.push(
+        { key: '_aioseo_og_title', value: seoContent.meta_title },
+        { key: '_aioseo_og_description', value: seoContent.meta_description },
+        { key: '_aioseo_twitter_title', value: seoContent.meta_title },
+        { key: '_aioseo_twitter_description', value: seoContent.meta_description }
+      );
       break;
 
     default:
-      console.log('Using default/universal SEO meta fields');
-      // Add universal meta fields that work with most themes and plugins
+      console.log('Using enhanced universal SEO meta fields');
+      // Enhanced universal meta fields that work with most themes and plugins
       metaData.push(
         { key: 'seo_title', value: seoContent.meta_title },
         { key: 'seo_description', value: seoContent.meta_description },
@@ -284,12 +294,17 @@ export function generateSeoMetaData(seoContent: SeoContent, seoPlugin: string | 
         { key: 'meta_description', value: seoContent.meta_description },
         { key: 'meta_keywords', value: focusKeywords },
         { key: 'focus_keywords', value: focusKeywords },
-        { key: 'ai_generated_seo', value: 'true' }
+        { key: 'ai_generated_seo', value: 'true' },
+        // Additional universal fields for broader compatibility
+        { key: '_meta_title', value: seoContent.meta_title },
+        { key: '_meta_description', value: seoContent.meta_description },
+        { key: '_seo_title', value: seoContent.meta_title },
+        { key: '_seo_description', value: seoContent.meta_description }
       );
       break;
   }
 
-  // Add image alt text fields (universal)
+  // Enhanced image alt text fields (universal)
   const imageAltText = seoContent.alt_text || seoContent.meta_title;
   metaData.push(
     { key: '_wp_attachment_image_alt', value: imageAltText },
@@ -299,8 +314,8 @@ export function generateSeoMetaData(seoContent: SeoContent, seoPlugin: string | 
     { key: '_wp_attachment_image_description', value: imageAltText }
   );
 
-  console.log('Total meta fields generated:', metaData.length);
-  console.log('Meta fields:', metaData.map(m => `${m.key}: ${m.value.substring(0, 50)}...`));
+  console.log(`Generated ${metaData.length} meta fields for ${seoPlugin || 'universal'} SEO plugin`);
+  console.log('Meta fields preview:', metaData.slice(0, 5).map(m => `${m.key}: ${m.value.substring(0, 30)}...`));
 
   return metaData;
 }
@@ -555,9 +570,8 @@ export async function updateProductWithSeoContent(
     };
 
     console.log('Sending update data to WooCommerce:', updateData);
-    console.log(`Using ${selectedPlugin || 'universal'} SEO fields`);
+    console.log(`Using ${selectedPlugin || 'universal'} SEO fields with ${metaData.length} meta fields`);
     console.log('Generated permalink (50 chars max):', permalink);
-    console.log('Meta data being sent:', JSON.stringify(metaData, null, 2));
 
     const success = await updateProductSeo(credentials, productId, updateData);
     
@@ -566,8 +580,7 @@ export async function updateProductWithSeoContent(
       console.log('Permalink set to:', permalink);
       
       // Also update product images with alt text
-      const imageAltText = seoContent.alt_text || seoContent.meta_title;
-      await updateProductImages(credentials, productId, imageAltText);
+      await updateProductImages(credentials, productId, seoContent.alt_text || seoContent.meta_title);
     } else {
       console.error('Failed to update product in WooCommerce');
     }

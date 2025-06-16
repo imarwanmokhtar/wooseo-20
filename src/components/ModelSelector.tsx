@@ -4,7 +4,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-export type AIModel = 'gemini-2.0-flash' | 'gpt-4o-mini' | 'gpt-3.5-turbo' | 'gpt-4o' | 'gpt-4.1';
+// --- TYPE: Remove old/invalid aliases (no 'gpt-4.1-2025-04-14' etc) ---
+export type AIModel =
+  | 'gemini-2.0-flash'
+  | 'gpt-4o-mini'
+  | 'gpt-3.5-turbo'
+  | 'gpt-4o'
+  | 'gpt-4.1';
 
 interface ModelSelectorProps {
   selectedModel: AIModel;
@@ -12,7 +18,18 @@ interface ModelSelectorProps {
   userCredits: number;
 }
 
-const modelConfig = {
+/**
+ * Centralized config for models and their credit costs.
+ * Ensure these match everywhere in the app!
+ */
+const modelConfig: Record<AIModel, {
+  name: string;
+  description: string;
+  credits: number;
+  provider: string;
+  disabled: boolean;
+  comingSoon: boolean;
+}> = {
   'gemini-2.0-flash': {
     name: 'Gemini 2.0 Flash',
     description: 'Fast and efficient AI model',
@@ -55,10 +72,10 @@ const modelConfig = {
   }
 };
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ 
-  selectedModel, 
-  onModelChange, 
-  userCredits 
+const ModelSelector: React.FC<ModelSelectorProps> = ({
+  selectedModel,
+  onModelChange,
+  userCredits
 }) => {
   return (
     <Card>
@@ -74,16 +91,16 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
             const canAfford = userCredits >= config.credits;
             const modelId = modelKey as AIModel;
             const isDisabled = config.disabled || !canAfford;
-            
+
             return (
               <div key={modelKey} className={`flex items-center space-x-2 p-3 rounded-lg border ${isDisabled ? 'opacity-50' : ''}`}>
-                <RadioGroupItem 
-                  value={modelId} 
+                <RadioGroupItem
+                  value={modelId}
                   id={modelId}
                   disabled={isDisabled}
                 />
-                <Label 
-                  htmlFor={modelId} 
+                <Label
+                  htmlFor={modelId}
                   className={`flex-1 cursor-pointer ${isDisabled ? 'opacity-50' : ''}`}
                 >
                   <div className="flex justify-between items-center">
@@ -113,7 +130,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
             );
           })}
         </RadioGroup>
-        
+
         <div className="mt-4 text-sm text-gray-600">
           Your available credits: <span className="font-medium">{userCredits}</span>
         </div>

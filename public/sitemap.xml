@@ -1,3 +1,4 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -13,15 +14,27 @@
     <loc>https://wooseos.com/register</loc>
   </url>
   <url>
-    <loc>https://wooseos.com/resetpassword</loc>
+    <loc>https://wooseos.com/reset-password</loc>
   </url>
   <url>
     <loc>https://wooseos.com/settings</loc>
   </url>
   <url>
-    <loc>https://wooseos.com/contentgeneration</loc>
+    <loc>https://wooseos.com/content-generation</loc>
   </url>
   <url>
-    <loc>https://wooseos.com/paymentsuccess</loc>
+    <loc>https://wooseos.com/products-extractor</loc>
+  </url>
+  <url>
+    <loc>https://wooseos.com/content-health</loc>
+  </url>
+  <url>
+    <loc>https://wooseos.com/payment-success</loc>
+  </url>
+  <url>
+    <loc>https://wooseos.com/blog</loc>
+  </url>
+  <url>
+    <loc>https://wooseos.com/affiliate</loc>
   </url>
 </urlset>
