@@ -1,6 +1,13 @@
+
 {
-   "rewrites": [
-     { "source": "/(.*)", "destination": "/" }
-   ]
- }
- 
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/" }
+  ],
+  "redirects": [
+    {
+      "source": "/affiliate",
+      "destination": "/404",
+      "permanent": false
+    }
+  ]
+}

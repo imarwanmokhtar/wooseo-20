@@ -3,7 +3,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Zap, User, LogOut, Settings, CreditCard, ChevronDown, Download, CheckCircle, Users } from 'lucide-react';
+import { Zap, User, LogOut, Settings, CreditCard, ChevronDown, Edit, Download, CheckCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,14 +31,23 @@ const Header = () => {
 
   const scrollToWhyUs = () => {
     if (location.pathname === '/') {
-      // Try to find the why-us section by ID first
-      const whyUsSection = document.getElementById('why-us');
-      if (whyUsSection) {
-        whyUsSection.scrollIntoView({ behavior: 'smooth' });
+      // Try to find the CoreBenefitsSection by looking for its heading
+      const coreSection = document.querySelector('h2');
+      const sections = document.querySelectorAll('h2');
+      let targetSection = null;
+      
+      sections.forEach(section => {
+        if (section.textContent?.includes('Why Store Owners Love WooSEO')) {
+          targetSection = section.closest('section');
+        }
+      });
+      
+      if (targetSection) {
+        targetSection.scrollIntoView({ behavior: 'smooth' });
       }
     } else {
       // If we're on another page, navigate to home and then scroll
-      window.location.href = '/#why-us';
+      window.location.href = '/#core-benefits';
     }
   };
 
@@ -46,10 +55,10 @@ const Header = () => {
     <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50">
       <div className="container mx-auto py-4 px-4 flex items-center justify-between">
         <Link to="/" className="flex items-center group">
-          <div className="bg-gradient-to-r from-seo-primary to-seo-secondary p-2 rounded-xl mr-3 group-hover:scale-110 transition-transform duration-200">
+          <div className="bg-brand-primary p-2 rounded-xl mr-3 group-hover:scale-110 transition-transform duration-200">
             <Zap className="h-5 w-5 text-white" />
           </div>
-          <span className="text-2xl font-display font-bold bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
+          <span className="text-2xl font-display font-bold text-brand-primary">
             wooSEO
           </span>
         </Link>
@@ -74,12 +83,6 @@ const Header = () => {
           >
             Blog
           </Link>
-          <Link 
-            to="/affiliate" 
-            className="text-gray-700 hover:text-seo-primary transition-colors font-medium"
-          >
-            Affiliates
-          </Link>
           
           {/* Tools Dropdown */}
           <DropdownMenu>
@@ -90,6 +93,12 @@ const Header = () => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-white border shadow-lg">
+              <DropdownMenuItem asChild>
+                <Link to="/bulk-editor" className="cursor-pointer w-full flex items-center">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Bulk Editor
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/products-extractor" className="cursor-pointer w-full flex items-center">
                   <Download className="h-4 w-4 mr-2" />
@@ -129,22 +138,6 @@ const Header = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard" className="cursor-pointer w-full">
                       Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/affiliate" className="cursor-pointer w-full">
-                      <Users className="h-4 w-4 mr-2" />
-                      Affiliate Program
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/products-extractor" className="cursor-pointer w-full">
-                      Products Extractor
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/blog" className="cursor-pointer w-full">
-                      Blog
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

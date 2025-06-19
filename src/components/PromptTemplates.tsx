@@ -197,7 +197,7 @@ const PromptTemplates = () => {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleSave} className="bg-seo-primary hover:bg-seo-primary/90">
+              <Button onClick={handleSave} className="bg-black text-white hover:bg-gray-800">
                 <Save className="h-4 w-4 mr-2" />
                 {editingId ? 'Update Template' : 'Create Template'}
               </Button>

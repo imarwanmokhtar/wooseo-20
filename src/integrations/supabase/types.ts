@@ -264,6 +264,39 @@ export type Database = {
           },
         ]
       }
+      processed_payments: {
+        Row: {
+          created_at: string
+          credits_added: number | null
+          id: string
+          processed_at: string
+          session_id: string
+          subscription_end: string | null
+          subscription_plan: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_added?: number | null
+          id?: string
+          processed_at?: string
+          session_id: string
+          subscription_end?: string | null
+          subscription_plan?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_added?: number | null
+          id?: string
+          processed_at?: string
+          session_id?: string
+          subscription_end?: string | null
+          subscription_plan?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       prompt_templates: {
         Row: {
           created_at: string
@@ -328,6 +361,8 @@ export type Database = {
       }
       users: {
         Row: {
+          bulk_editor_subscription: boolean | null
+          bulk_editor_subscription_end: string | null
           created_at: string
           credits: number
           email: string
@@ -335,6 +370,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bulk_editor_subscription?: boolean | null
+          bulk_editor_subscription_end?: string | null
           created_at?: string
           credits?: number
           email: string
@@ -342,6 +379,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bulk_editor_subscription?: boolean | null
+          bulk_editor_subscription_end?: string | null
           created_at?: string
           credits?: number
           email?: string

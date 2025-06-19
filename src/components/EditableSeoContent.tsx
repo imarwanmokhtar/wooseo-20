@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -148,9 +149,9 @@ const EditableSeoContent: React.FC<EditableSeoContentProps> = ({
         ) : (
           <div className="text-sm bg-gray-50 p-3 rounded border min-h-[40px] cursor-pointer hover:bg-gray-100 transition-colors">
             {isTextarea ? (
-              <pre className="whitespace-pre-wrap">{value}</pre>
+              <pre className="whitespace-pre-wrap">{value || 'No content'}</pre>
             ) : (
-              <span>{value}</span>
+              <span>{value || 'No content'}</span>
             )}
           </div>
         )}
@@ -217,16 +218,16 @@ const EditableSeoContent: React.FC<EditableSeoContentProps> = ({
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">
-          Generated Content for: {product.name}
+          Generated SEO Content for: {product.name}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {renderEditableField('meta_title', 'Meta Title (RankMath)', editableContent.meta_title)}
-        {renderEditableField('meta_description', 'Meta Description (RankMath)', editableContent.meta_description)}
+        {renderEditableField('meta_title', 'Meta Title (RankMath)', editableContent.meta_title || '')}
+        {renderEditableField('meta_description', 'Meta Description (RankMath)', editableContent.meta_description || '', true)}
         {renderEditableField('permalink', 'Permalink (RankMath)', editableContent.permalink || '')}
         {renderFocusKeywordsField()}
-        {renderEditableField('short_description', 'Short Description', editableContent.short_description, true)}
-        {renderEditableField('long_description', 'Long Description (HTML)', editableContent.long_description, true)}
+        {renderEditableField('short_description', 'Short Description', editableContent.short_description || '', true)}
+        {renderEditableField('long_description', 'Long Description (HTML)', editableContent.long_description || '', true)}
         {renderEditableField('alt_text', 'Image Alt Text', editableContent.alt_text || '')}
       </CardContent>
     </Card>

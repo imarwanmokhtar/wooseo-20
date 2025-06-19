@@ -6,11 +6,11 @@ import { ArrowRight } from 'lucide-react';
 
 const DemoSection = () => {
   return (
-    <section className="py-24 bg-gradient-to-br from-seo-primary/5 to-seo-secondary/5 relative">
+    <section className="py-24 bg-gradient-to-br from-[#6C3EF4]/5 to-[#7C4DFF]/5 relative">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16 animate-fade-in-up">
           <h2 className="text-4xl md:text-5xl font-display font-bold mb-8 text-gray-900">
-            What If You Could Transform <span className="text-seo-primary">This...</span>
+            What If You Could Transform <span className="text-[#6C3EF4]">This...</span>
           </h2>
         </div>
         
@@ -70,7 +70,7 @@ const DemoSection = () => {
           <Button 
             asChild 
             size="lg" 
-            className="bg-gradient-to-r from-seo-accent to-seo-primary hover:from-seo-accent/90 hover:to-seo-primary/90 text-white py-6 px-10 text-lg font-semibold rounded-2xl transform hover:scale-105 transition-all duration-200 shadow-2xl"
+            className="bg-gradient-to-r from-[#A1E887] to-[#6C3EF4] hover:from-[#8BC34A] hover:to-[#512DA8] text-white py-6 px-10 text-lg font-semibold rounded-2xl transform hover:scale-105 transition-all duration-200 shadow-2xl"
           >
             <Link to="/register" className="flex items-center">
               Generate 3 Products for Free

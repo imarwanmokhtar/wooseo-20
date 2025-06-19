@@ -63,7 +63,7 @@ serve(async (req) => {
       // Check if this payment has already been processed
       const { data: existingPayment } = await supabaseClient
         .from('processed_payments')
-        .select('id')
+        .select('id, credits_added, subscription_plan')
         .eq('session_id', finalSessionId)
         .eq('user_id', userData.user.id)
         .single();
@@ -73,7 +73,8 @@ serve(async (req) => {
         return new Response(JSON.stringify({ 
           success: true, 
           message: "Payment already processed",
-          credits_added: 0
+          credits_added: existingPayment.credits_added || 0,
+          subscription_activated: !!existingPayment.subscription_plan
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
@@ -85,64 +86,120 @@ serve(async (req) => {
       const session = await stripe.checkout.sessions.retrieve(finalSessionId);
       
       if (session.payment_status === 'paid' && session.metadata?.user_id === userData.user.id) {
-        const creditsToAdd = parseInt(session.metadata.credits || '0');
-        console.log("Payment verified, adding credits:", creditsToAdd);
+        const paymentType = session.metadata.type;
+        console.log("Payment verified, type:", paymentType);
         
-        // Get current user credits
-        const { data: currentUser, error: fetchError } = await supabaseClient
-          .from('users')
-          .select('credits')
-          .eq('id', userData.user.id)
-          .single();
+        if (paymentType === 'one-time') {
+          // Handle credit purchase - exactly 200 credits for $20
+          const creditsToAdd = parseInt(session.metadata.credits || '0');
+          console.log("Adding credits:", creditsToAdd);
+          
+          // Get current user credits
+          const { data: currentUser, error: fetchError } = await supabaseClient
+            .from('users')
+            .select('credits')
+            .eq('id', userData.user.id)
+            .single();
 
-        if (fetchError) {
-          console.error("Error fetching current credits:", fetchError);
-          throw fetchError;
-        }
+          if (fetchError) {
+            console.error("Error fetching current credits:", fetchError);
+            throw fetchError;
+          }
 
-        const newCredits = (currentUser?.credits || 0) + creditsToAdd;
-        console.log("Updating credits from", currentUser?.credits, "to", newCredits);
+          const newCredits = (currentUser?.credits || 0) + creditsToAdd;
+          console.log("Updating credits from", currentUser?.credits, "to", newCredits);
 
-        // Update user credits
-        const { error: updateError } = await supabaseClient
-          .from('users')
-          .update({ credits: newCredits })
-          .eq('id', userData.user.id);
+          // Update user credits
+          const { error: updateError } = await supabaseClient
+            .from('users')
+            .update({ credits: newCredits })
+            .eq('id', userData.user.id);
 
-        if (updateError) {
-          console.error("Error updating credits:", updateError);
-          throw updateError;
-        }
+          if (updateError) {
+            console.error("Error updating credits:", updateError);
+            throw updateError;
+          }
 
-        // Mark payment as processed
-        const { error: paymentError } = await supabaseClient
-          .from('processed_payments')
-          .insert({
-            session_id: finalSessionId,
-            user_id: userData.user.id,
+          // Mark payment as processed
+          await supabaseClient
+            .from('processed_payments')
+            .insert({
+              session_id: finalSessionId,
+              user_id: userData.user.id,
+              credits_added: creditsToAdd,
+              processed_at: new Date().toISOString()
+            });
+
+          console.log("Successfully added", creditsToAdd, "credits to user account");
+
+          return new Response(JSON.stringify({ 
+            success: true, 
             credits_added: creditsToAdd,
-            processed_at: new Date().toISOString()
+            new_total: newCredits 
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        } else if (paymentType === 'subscription') {
+          // Handle subscription activation - unlimited bulk editing access
+          const plan = session.metadata.plan;
+          console.log("Activating subscription for plan:", plan);
+          
+          // Get subscription details from Stripe
+          const subscription = await stripe.subscriptions.list({
+            customer: session.customer as string,
+            status: 'active',
+            limit: 1
           });
 
-        if (paymentError) {
-          console.error("Error recording processed payment:", paymentError);
-          // Don't throw error here as credits were already added
-        }
+          if (subscription.data.length > 0) {
+            const sub = subscription.data[0];
+            const subscriptionEnd = new Date(sub.current_period_end * 1000).toISOString();
+            
+            console.log("Subscription end date:", subscriptionEnd);
+            
+            // Update user subscription status
+            const { error: updateError } = await supabaseClient
+              .from('users')
+              .update({ 
+                bulk_editor_subscription: true,
+                bulk_editor_subscription_end: subscriptionEnd
+              })
+              .eq('id', userData.user.id);
 
-        console.log("Credits updated successfully");
-        return new Response(JSON.stringify({ 
-          success: true, 
-          credits_added: creditsToAdd,
-          new_total: newCredits 
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
+            if (updateError) {
+              console.error("Error updating subscription:", updateError);
+              throw updateError;
+            }
+
+            // Mark payment as processed
+            await supabaseClient
+              .from('processed_payments')
+              .insert({
+                session_id: finalSessionId,
+                user_id: userData.user.id,
+                subscription_plan: plan,
+                subscription_end: subscriptionEnd,
+                processed_at: new Date().toISOString()
+              });
+
+            console.log("Successfully activated bulk editor subscription until:", subscriptionEnd);
+
+            return new Response(JSON.stringify({ 
+              success: true, 
+              subscription_activated: true,
+              subscription_end: subscriptionEnd
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+        }
       } else {
-        console.log("Payment not completed or user mismatch");
+        console.log("Payment not completed or user mismatch. Payment status:", session.payment_status, "User ID match:", session.metadata?.user_id === userData.user.id);
         return new Response(JSON.stringify({ 
           success: false, 
-          message: "Payment not completed" 
+          message: "Payment not completed or verification failed" 
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,

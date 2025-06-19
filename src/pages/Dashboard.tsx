@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,10 +16,10 @@ import ContentHealthDashboard from '@/components/ContentHealthDashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PromptTemplates from '@/components/PromptTemplates';
 import CreditPurchase from '@/components/CreditPurchase';
-import { Sparkles, ShoppingBag, FileText, PenTool, Coins, TrendingUp, Settings, Download, CheckCircle } from 'lucide-react';
+import { Sparkles, ShoppingBag, FileText, PenTool, Coins, TrendingUp, Settings, Download, CheckCircle, Edit } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, session, userDetails, credits, refreshCredits, loading: authLoading } = useAuth();
+  const { user, session, userDetails, credits, refreshCredits, loading: authLoading, bulkEditorAccess, checkSubscriptionStatus } = useAuth();
   const { stores, activeStore, storeUsage, loading: storeLoading } = useMultiStore();
   const { selectedPlugin, setSelectedPlugin } = useSeoPlugin();
   const [showStoreSetup, setShowStoreSetup] = useState(false);
@@ -38,11 +37,13 @@ const Dashboard = () => {
 
       if (user?.id) {
         refreshCredits();
+        // Check subscription status on load
+        await checkSubscriptionStatus();
       }
     };
 
     checkAuth();
-  }, [user, session, authLoading, navigate, refreshCredits]);
+  }, [user, session, authLoading, navigate, refreshCredits, checkSubscriptionStatus]);
 
   if (authLoading || storeLoading) {
     return (
@@ -67,13 +68,22 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold mb-1">Welcome back{userDetails?.email ? `, ${userDetails.email.split('@')[0]}` : ''}!</h1>
             <p className="text-gray-600">Optimize your WooCommerce products with AI-powered SEO</p>
           </div>
-          <div className="flex items-center bg-white rounded-lg px-4 py-2 border">
-            <Coins className="h-5 w-5 text-yellow-500 mr-2" />
-            <span className="text-sm mr-2">Credits:</span>
-            <span className="font-bold">{credits}</span>
-            <Button variant="link" size="sm" className="ml-2 text-seo-primary" onClick={() => refreshCredits()}>
-              Refresh
-            </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center bg-white rounded-lg px-4 py-2 border">
+              <Coins className="h-5 w-5 text-yellow-500 mr-2" />
+              <span className="text-sm mr-2">Credits:</span>
+              <span className="font-bold">{credits}</span>
+              <Button variant="link" size="sm" className="ml-2 text-seo-primary" onClick={() => refreshCredits()}>
+                Refresh
+              </Button>
+            </div>
+            <div className={`flex items-center rounded-lg px-4 py-2 border ${bulkEditorAccess ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+              <Edit className={`h-5 w-5 mr-2 ${bulkEditorAccess ? 'text-green-500' : 'text-gray-400'}`} />
+              <span className="text-sm mr-2">Bulk Editor:</span>
+              <span className={`font-bold ${bulkEditorAccess ? 'text-green-600' : 'text-gray-500'}`}>
+                {bulkEditorAccess ? 'Active' : 'Inactive'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -179,6 +189,9 @@ const Dashboard = () => {
               <TabsTrigger value="products" className="flex items-center">
                 <ShoppingBag className="h-4 w-4 mr-2" /> Products
               </TabsTrigger>
+              <TabsTrigger value="bulk-editor" className="flex items-center">
+                <Edit className="h-4 w-4 mr-2" /> Bulk Editor
+              </TabsTrigger>
               <TabsTrigger value="extractor" className="flex items-center">
                 <Download className="h-4 w-4 mr-2" /> Products Extractor
               </TabsTrigger>
@@ -189,12 +202,34 @@ const Dashboard = () => {
                 <FileText className="h-4 w-4 mr-2" /> Prompt Templates
               </TabsTrigger>
               <TabsTrigger value="credits" className="flex items-center">
-                <Coins className="h-4 w-4 mr-2" /> Buy Credits
+                <Coins className="h-4 w-4 mr-2" /> Subscriptions
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="products">
               <ProductSelector />
+            </TabsContent>
+
+            <TabsContent value="bulk-editor">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Edit className="h-5 w-5 mr-2 text-seo-primary" />
+                    Bulk Product Editor
+                  </CardTitle>
+                  <CardDescription>
+                    Edit multiple products at once with a spreadsheet-like interface
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <p className="text-gray-600 mb-4">Manage your products efficiently with bulk editing capabilities</p>
+                    <Button asChild>
+                      <Link to="/bulk-editor">Open Bulk Editor</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="extractor">

@@ -21,7 +21,7 @@ export default {
 		extend: {
 			fontFamily: {
 				'sans': ['Inter', 'system-ui', 'sans-serif'],
-				'display': ['Poppins', 'Inter', 'system-ui', 'sans-serif'],
+				'display': ['Inter', 'Poppins', 'system-ui', 'sans-serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',
@@ -67,15 +67,17 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Modern wooSEO colors
-				seo: {
-					primary: '#6366f1', // Modern indigo
-					secondary: '#8b5cf6', // Purple
-					accent: '#06d6a0', // Modern teal
-					light: '#f8fafc', // Very light gray
-					dark: '#0f172a',  // Dark slate
-					orange: '#f59e0b', // Warm orange
-					pink: '#ec4899', // Vibrant pink
+				// Updated brand colors based on your specifications
+				brand: {
+					primary: '#6C3EF4', // Primary purple
+					'primary-hover': '#512DA8', // Darker purple for hover
+					accent: '#A1E887', // Lime green
+					'accent-hover': '#00C853', // Darker green for hover
+					light: '#F8F9FB', // Soft white background
+					white: '#FFFFFF', // Pure white
+					text: '#1F1F1F', // Charcoal for headlines
+					'text-secondary': '#6B6B6B', // Gray for descriptions
+					orange: '#FFA726', // Orange for alerts/badges
 				}
 			},
 			borderRadius: {

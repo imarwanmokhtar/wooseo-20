@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +15,7 @@ interface AuthContextType {
   loading: boolean;
   credits: number;
   userDetails: UserDetails | null;
+  bulkEditorAccess: boolean;
   signUp: (email: string, password: string, metadata?: any) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -23,6 +23,7 @@ interface AuthContextType {
   forgotPassword: (email: string) => Promise<void>;
   updateCredits: (newCredits: number) => void;
   refreshCredits: () => Promise<void>;
+  checkSubscriptionStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,7 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState(0);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
+  const [bulkEditorAccess, setBulkEditorAccess] = useState(false);
   const navigate = useNavigate();
+
+  // Check if subscription is expired locally
+  const checkLocalExpiration = (subscriptionEnd: string | null, hasSubscription: boolean) => {
+    if (!hasSubscription || !subscriptionEnd) {
+      return false;
+    }
+    
+    const endDate = new Date(subscriptionEnd);
+    const now = new Date();
+    return now <= endDate;
+  };
 
   useEffect(() => {
     // Get initial session
@@ -86,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUserDetails(null);
         setCredits(0);
+        setBulkEditorAccess(false);
       }
     });
 
@@ -94,16 +108,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserCredits = async (userId: string, retryCount = 0) => {
     try {
-      console.log('Fetching credits for user:', userId);
+      console.log('Fetching credits and subscription status for user:', userId);
       
       const { data, error } = await supabase
         .from('users')
-        .select('credits')
+        .select('credits, bulk_editor_subscription, bulk_editor_subscription_end')
         .eq('id', userId)
         .single();
 
       if (error) {
-        console.error('Error fetching credits:', error);
+        console.error('Error fetching user data:', error);
         
         // If user record doesn't exist yet and we haven't retried much, try again
         if (error.code === 'PGRST116' && retryCount < 3) {
@@ -114,19 +128,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
         
-        // If still no user record after retries, set default credits
+        // If still no user record after retries, set defaults
         if (error.code === 'PGRST116') {
-          console.log('User record still not found after retries, setting default credits');
+          console.log('User record still not found after retries, setting defaults');
           setCredits(10);
+          setBulkEditorAccess(false);
         }
         return;
       }
 
-      console.log('Credits fetched successfully:', data?.credits);
+      console.log('User data fetched successfully:', data);
       setCredits(data?.credits || 0);
+      
+      // Check if subscription is still valid
+      const hasValidSubscription = checkLocalExpiration(
+        data?.bulk_editor_subscription_end, 
+        data?.bulk_editor_subscription || false
+      );
+      
+      setBulkEditorAccess(hasValidSubscription);
+      
+      // If subscription appears expired locally, trigger server-side check
+      if (data?.bulk_editor_subscription && !hasValidSubscription) {
+        console.log('Subscription appears expired, triggering server-side expiration check');
+        await checkSubscriptionStatus();
+      }
+      
     } catch (error) {
       console.error('Error in fetchUserCredits:', error);
       setCredits(0);
+      setBulkEditorAccess(false);
+    }
+  };
+
+  const checkSubscriptionStatus = async () => {
+    try {
+      console.log('Checking subscription status with server...');
+      const { data, error } = await supabase.functions.invoke('expire-subscriptions');
+      
+      if (error) {
+        console.error('Error checking subscription status:', error);
+        return;
+      }
+      
+      console.log('Subscription check result:', data);
+      
+      // Refresh user data after expiration check
+      if (user?.id) {
+        await fetchUserCredits(user.id);
+      }
+    } catch (error) {
+      console.error('Error in checkSubscriptionStatus:', error);
     }
   };
 
@@ -213,6 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     credits,
     userDetails,
+    bulkEditorAccess,
     signUp,
     signIn,
     signOut,
@@ -220,6 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     forgotPassword,
     updateCredits,
     refreshCredits,
+    checkSubscriptionStatus,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

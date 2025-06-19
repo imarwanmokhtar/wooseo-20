@@ -1,32 +1,53 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export const createSubscription = async (creditPackage: '50' | '500' | '1000') => {
-  // Stripe price IDs (if needed elsewhere)
-  const stripePriceIds: { [key: string]: string } = {
-    '50': 'price_5', // Replace with actual Stripe price ID for 50 credits
-    '500': 'price_20', // Replace with actual Stripe price ID for 500 credits
-    '1000': 'price_35', // Replace with actual Stripe price ID for 1000 credits
-  };
+export const createSubscription = async (plan: '200' | 'bulk-editor') => {
   try {
-    console.log('Creating checkout session for credit package:', creditPackage);
-    // Correct prices for new tiers
-    const prices = {
-      '50': 5, // $5 for 50 credits (Starter)
-      '500': 20, // $20 for 500 credits (Growth)
-      '1000': 35, // $35 for 1000 credits (Scale)
-    };
+    console.log('Creating checkout session for plan:', plan);
+    
+    // Check if user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('User not authenticated:', authError);
+      throw new Error('Please log in to purchase credits');
+    }
+
+    console.log('User authenticated:', user.email);
+    
+    let body;
+    if (plan === '200') {
+      // One-time payment for 200 credits
+      body = { 
+        credits: '200',
+        price: 20,
+        type: 'one-time'
+      };
+    } else if (plan === 'bulk-editor') {
+      // Monthly subscription for bulk editor
+      body = {
+        plan: 'bulk-editor',
+        price: 9,
+        type: 'subscription'
+      };
+    }
+    
+    console.log('Request body:', body);
+    
     // Call our Supabase Edge Function
     const { data, error } = await supabase.functions.invoke('create-checkout', {
-      body: { 
-        credits: creditPackage,
-        price: prices[creditPackage],
-      }
+      body: body
     });
+    
     if (error) {
       console.error('Error from edge function:', error);
-      throw error;
+      throw new Error(`Payment setup failed: ${error.message}`);
     }
+    
+    if (!data || !data.url) {
+      console.error('No checkout URL returned:', data);
+      throw new Error('Failed to create checkout session');
+    }
+    
     console.log('Checkout session created:', data);
     // Return the URL for the checkout session
     return data.url;

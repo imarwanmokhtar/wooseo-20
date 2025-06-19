@@ -45,10 +45,10 @@ const ResetPassword = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <Link to="/" className="inline-flex items-center group">
-            <div className="bg-gradient-to-r from-seo-primary to-seo-secondary p-2 rounded-xl mr-3 group-hover:scale-110 transition-transform duration-200">
+            <div className="bg-gradient-to-r from-[#6C3EF4] to-[#7C4DFF] p-2 rounded-xl mr-3 group-hover:scale-110 transition-transform duration-200">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-2xl font-display font-bold bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
+            <span className="text-2xl font-display font-bold bg-gradient-to-r from-[#6C3EF4] to-[#7C4DFF] bg-clip-text text-transparent">
               wooSEO
             </span>
           </Link>
@@ -98,7 +98,7 @@ const ResetPassword = () => {
             <CardFooter className="flex flex-col space-y-4">
               <Button 
                 type="submit" 
-                className="w-full bg-seo-primary hover:bg-seo-primary/90"
+                className="w-full bg-[#6C3EF4] hover:bg-[#512DA8] text-white"
                 disabled={isLoading}
               >
                 {isLoading ? 'Resetting...' : 'Reset Password'}
@@ -106,7 +106,7 @@ const ResetPassword = () => {
               
               <div className="text-center text-sm">
                 Remember your password?{' '}
-                <Link to="/login" className="text-seo-primary font-medium hover:underline">
+                <Link to="/login" className="text-[#6C3EF4] hover:text-[#512DA8] font-medium hover:underline">
                   Sign in
                 </Link>
               </div>

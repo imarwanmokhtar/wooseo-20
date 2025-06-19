@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { ProductContentHealth } from '@/types/contentHealth';
 import { Product } from '@/types';
@@ -15,6 +14,8 @@ import ContentHealthTableFilters from './ContentHealthTableFilters';
 import ContentHealthBulkActions from './ContentHealthBulkActions';
 import ContentHealthTableDisplay from './ContentHealthTableDisplay';
 import ContentHealthEmptyState from './ContentHealthEmptyState';
+import { generateSeoContent, getDefaultPromptTemplate } from '@/services/aiGenerationService';
+import { updateProductWithSeoContent } from '@/services/wooCommerceApi';
 
 interface ContentHealthTableProps {
   healthResults: ProductContentHealth[];
@@ -90,7 +91,7 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
   const openBulkDialog = () => setBulkDialogOpen(true);
   const closeBulkDialog = () => setBulkDialogOpen(false);
 
-  // --- Actual bulk regeneration logic ---
+  // --- Updated bulk regeneration logic to use real AI generation ---
   async function handleBulkRegenerate(selectedModel: AIModel) {
     if (!user || !activeStore) {
       toast.error("User and active store required");
@@ -116,59 +117,84 @@ const ContentHealthTable: React.FC<ContentHealthTableProps> = ({
     let processed = 0;
     let failed = 0;
 
-    console.log(`Starting bulk regeneration for ${totalToProcess} products using ${selectedPlugin} SEO plugin`);
+    console.log(`Starting AI-powered bulk regeneration for ${totalToProcess} products using ${selectedPlugin} SEO plugin and ${selectedModel} model`);
 
-    // We'll loop over each product and trigger `generateSeoContent` (as in details page, for full regeneration)
-    for (const result of productList) {
-      try {
-        // Fetch product details (as done in handleViewDetails)
-        const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
-        if (!credentials) throw new Error("No WooCommerce credentials");
+    try {
+      // Get the default prompt template for AI generation
+      const defaultPrompt = await getDefaultPromptTemplate(user.id);
+      
+      // Loop over each product and use real AI generation
+      for (const result of productList) {
+        try {
+          // Fetch product details
+          const credentials = await getWooCommerceCredentials(user.id, activeStore.id);
+          if (!credentials) throw new Error("No WooCommerce credentials");
 
-        const { products } = await fetchProducts(credentials, {
-          include: [result.product_id],
-          per_page: 1
-        });
-        if (products.length === 0) throw new Error("Product not found");
+          const { products } = await fetchProducts(credentials, {
+            include: [result.product_id],
+            per_page: 1
+          });
+          if (products.length === 0) throw new Error("Product not found");
 
-        const product = products[0];
+          const product = products[0];
 
-        // Regenerate ALL fields using generateSeoContent, as in ProductDetailsPage's handleRegenerateAll
-        const prompt = `Generate comprehensive SEO content for this WooCommerce product: ${product.name}. Description: ${product.description}. Price: ${product.price}`;
-        const newContent = await import('@/services/aiGenerationService').then(m =>
-          m.generateSeoContent(product, prompt, user.id, selectedModel, activeStore.id)
-        );
+          console.log(`Generating AI content for product: ${product.name} using ${selectedModel}`);
+          
+          // Use real AI generation service (same as Products tab)
+          const aiGeneratedContent = await generateSeoContent(
+            product, 
+            defaultPrompt, 
+            user.id, 
+            selectedModel, 
+            activeStore.id
+          );
 
-        // Save new content back to WooCommerce using the selected SEO plugin
-        const updateResult = await import('@/services/wooCommerceApi').then(api =>
-          api.updateProductWithSeoContent(credentials, product.id, newContent, selectedPlugin)
-        );
+          // Save the AI-generated content back to WooCommerce
+          const updateResult = await updateProductWithSeoContent(
+            credentials, 
+            product.id, 
+            aiGeneratedContent, 
+            selectedPlugin
+          );
 
-        if (updateResult.success) {
-          processed++;
-          console.log(`Successfully regenerated content for product ${product.name} with ${selectedPlugin} SEO plugin`);
-        } else {
+          if (updateResult.success) {
+            processed++;
+            console.log(`Successfully regenerated AI content for product ${product.name} with ${selectedPlugin} SEO plugin`);
+          } else {
+            failed++;
+            console.error(`Failed to update product ${product.name} in WooCommerce`);
+          }
+
+          // Add delay between requests to prevent API rate limits
+          if (processed + failed < totalToProcess) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+
+        } catch (err) {
           failed++;
-          console.error(`Failed to update product ${product.name} in WooCommerce`);
+          console.error('Bulk AI regeneration error:', err);
         }
-      } catch (err) {
-        failed++;
-        console.error('Bulk regeneration error:', err);
       }
+
+      // Refresh credits from server after all operations complete
+      await refreshCredits();
+
+      setBulkLoading(false);
+      setBulkDialogOpen(false);
+      
+      const successMessage = `AI regenerated ${processed} products successfully using ${selectedPlugin === 'rankmath' ? 'RankMath' : selectedPlugin === 'yoast' ? 'Yoast SEO' : selectedPlugin === 'aioseo' ? 'All in One SEO' : 'Universal'} fields with ${selectedModel} model${failed ? ` (${failed} failed)` : ""}.`;
+      toast.success(successMessage);
+      console.log(successMessage);
+      
+      onRefresh();
+      onCreditsUpdated();
+
+    } catch (error) {
+      console.error('Bulk AI regeneration failed:', error);
+      setBulkLoading(false);
+      setBulkDialogOpen(false);
+      toast.error('Bulk AI regeneration failed. Please try again.');
     }
-
-    // Refresh credits from server after all operations complete
-    await refreshCredits();
-
-    setBulkLoading(false);
-    setBulkDialogOpen(false);
-    
-    const successMessage = `Regenerated ${processed} products successfully using ${selectedPlugin === 'rankmath' ? 'RankMath' : selectedPlugin === 'yoast' ? 'Yoast SEO' : selectedPlugin === 'aioseo' ? 'All in One SEO' : 'Universal'} fields${failed ? ` (${failed} failed)` : ""}.`;
-    toast.success(successMessage);
-    console.log(successMessage);
-    
-    onRefresh();
-    onCreditsUpdated();
   }
 
   const handleViewDetails = async (healthData: ProductContentHealth) => {

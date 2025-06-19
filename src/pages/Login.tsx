@@ -38,10 +38,10 @@ const Login = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <Link to="/" className="inline-flex items-center group">
-            <div className="bg-gradient-to-r from-seo-primary to-seo-secondary p-2 rounded-xl mr-3 group-hover:scale-110 transition-transform duration-200">
+            <div className="bg-gradient-to-r from-[#6C3EF4] to-[#7C4DFF] p-2 rounded-xl mr-3 group-hover:scale-110 transition-transform duration-200">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-2xl font-display font-bold bg-gradient-to-r from-seo-primary to-seo-secondary bg-clip-text text-transparent">
+            <span className="text-2xl font-display font-bold bg-gradient-to-r from-[#6C3EF4] to-[#7C4DFF] bg-clip-text text-transparent">
               wooSEO
             </span>
           </Link>
@@ -79,7 +79,7 @@ const Login = () => {
                     <Button 
                       type="button" 
                       variant="link" 
-                      className="text-xs text-seo-primary p-0"
+                      className="text-xs text-[#6C3EF4] hover:text-[#512DA8] p-0"
                       onClick={() => setForgotMode(true)}
                       disabled={isLoading}
                     >
@@ -101,7 +101,7 @@ const Login = () => {
             <CardFooter className="flex flex-col space-y-4">
               <Button 
                 type="submit" 
-                className="w-full bg-seo-primary hover:bg-seo-primary/90"
+                className="w-full bg-[#6C3EF4] hover:bg-[#512DA8] text-white"
                 disabled={isLoading}
               >
                 {isLoading ? 'Processing...' : forgotMode ? 'Send Reset Link' : 'Sign In'}
@@ -111,6 +111,7 @@ const Login = () => {
                 <Button 
                   type="button" 
                   variant="link" 
+                  className="text-[#6C3EF4] hover:text-[#512DA8]"
                   onClick={() => setForgotMode(false)}
                   disabled={isLoading}
                 >
@@ -119,7 +120,7 @@ const Login = () => {
               ) : (
                 <div className="text-center text-sm">
                   Don't have an account?{' '}
-                  <Link to="/register" className="text-seo-primary font-medium hover:underline">
+                  <Link to="/register" className="text-[#6C3EF4] hover:text-[#512DA8] font-medium hover:underline">
                     Sign up
                   </Link>
                 </div>

@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -326,6 +325,11 @@ function generateSecondaryKeywords(productName: string, categories: string): str
   return secondaryKeywords.slice(0, 4);
 }
 
+function escapeRegexCharacters(str: string): string {
+  // Escape special regex characters to prevent regex syntax errors
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function validateAndFixContent(content: any, primaryKeyword: string, storeUrl: string): any {
   console.log('Validating and fixing content for keyword:', primaryKeyword);
   
@@ -337,9 +341,9 @@ function validateAndFixContent(content: any, primaryKeyword: string, storeUrl: s
   const shortKeyword = extractedPrimaryKeyword.length > 25 ? 
     extractedPrimaryKeyword.split(' ').slice(0, 3).join(' ') : extractedPrimaryKeyword;
   
-  // Fix meta title - ensure it starts with primary keyword and has power word
-  if (!content.meta_title || !content.meta_title.toLowerCase().startsWith(extractedPrimaryKeyword.toLowerCase())) {
-    console.log('Fixing meta title to start with primary keyword and add power word');
+  // Only fix meta title if it's completely missing or very short
+  if (!content.meta_title || content.meta_title.trim().length < 10) {
+    console.log('Meta title missing or too short, generating new one');
     const powerWords = ['Ultimate', 'Best', 'Top', 'Premium', 'Professional', 'Advanced'];
     const randomPowerWord = powerWords[Math.floor(Math.random() * powerWords.length)];
     content.meta_title = `${shortKeyword} - ${randomPowerWord} Quality`;
@@ -351,22 +355,47 @@ function validateAndFixContent(content: any, primaryKeyword: string, storeUrl: s
     if (content.meta_title.length > 60) {
       content.meta_title = content.meta_title.substring(0, 57) + '...';
     }
+  } else {
+    // Only adjust if it doesn't start with the keyword - prepend instead of replacing
+    if (!content.meta_title.toLowerCase().startsWith(extractedPrimaryKeyword.toLowerCase())) {
+      console.log('Adjusting meta title to start with primary keyword');
+      // Try to prepend the keyword while keeping original content
+      const originalTitle = content.meta_title;
+      const maxLength = 60 - shortKeyword.length - 3; // Account for " - "
+      if (originalTitle.length > maxLength) {
+        content.meta_title = `${shortKeyword} - ${originalTitle.substring(0, maxLength)}`;
+      } else {
+        content.meta_title = `${shortKeyword} - ${originalTitle}`;
+      }
+    }
   }
 
-  // Fix meta description - ensure it starts with primary keyword
-  if (!content.meta_description || !content.meta_description.toLowerCase().startsWith(extractedPrimaryKeyword.toLowerCase())) {
-    console.log('Fixing meta description to start with primary keyword');
+  // Only fix meta description if it's completely missing or very short
+  if (!content.meta_description || content.meta_description.trim().length < 20) {
+    console.log('Meta description missing or too short, generating new one');
     content.meta_description = `${shortKeyword} offers superior quality and performance. Get the best value for your money. Order now!`;
     
     // Ensure it's 150-155 characters
     if (content.meta_description.length > 155) {
       content.meta_description = content.meta_description.substring(0, 152) + '...';
     }
+  } else {
+    // Only adjust if it doesn't start with the keyword - prepend instead of replacing
+    if (!content.meta_description.toLowerCase().startsWith(extractedPrimaryKeyword.toLowerCase())) {
+      console.log('Adjusting meta description to start with primary keyword');
+      const originalDesc = content.meta_description;
+      const maxLength = 155 - shortKeyword.length - 2; // Account for ": "
+      if (originalDesc.length > maxLength) {
+        content.meta_description = `${shortKeyword}: ${originalDesc.substring(0, maxLength)}`;
+      } else {
+        content.meta_description = `${shortKeyword}: ${originalDesc}`;
+      }
+    }
   }
 
-  // Fix long description - ensure it starts with primary keyword and has proper density
-  if (!content.long_description || !content.long_description.toLowerCase().startsWith(extractedPrimaryKeyword.toLowerCase())) {
-    console.log('Fixing long description to start with primary keyword and optimize for 1.5% density');
+  // Only fix long description if it's completely missing or extremely short
+  if (!content.long_description || content.long_description.trim().length < 100) {
+    console.log('Long description missing or too short, generating new one');
     
     // Create expanded content with proper keyword density (1.5% = 11-12 times in 750+ words)
     content.long_description = `<div>
@@ -391,28 +420,6 @@ function validateAndFixContent(content: any, primaryKeyword: string, storeUrl: s
 <h3>Why Choose This Premium Solution?</h3>
 <p>The ${shortKeyword} stands out in today's competitive market through its exceptional build quality, innovative features, and proven track record of customer satisfaction. Whether you're seeking durability, performance, style, or value, this product delivers outstanding results that consistently exceed expectations. Industry experts recognize its superior engineering and recommend it as the leading choice for discerning customers who demand excellence.</p>
 
-<h3>Detailed Product Benefits and Advantages</h3>
-<p>Users consistently report remarkable improvements in their experience when switching to this premium solution. The advanced engineering ensures optimal performance under various conditions, while the user-friendly design makes operation intuitive and efficient. Industry professionals recommend this product for its reliability and consistent performance across diverse applications and environments.</p>
-
-<h3>Installation Guide and Usage Instructions</h3>
-<p>Getting started is simple with the included comprehensive guide and support materials. The intuitive interface ensures quick setup and immediate productivity, allowing users to achieve optimal results from the first use. Regular maintenance is minimal, and the robust construction guarantees long-lasting performance with proper care and handling. Step-by-step instructions make installation straightforward for users of all skill levels.</p>
-
-<h3>Product Comparison and Market Analysis</h3>
-<p>When compared to alternatives in the market, this product consistently ranks highest in customer satisfaction surveys and professional reviews. The superior materials, advanced technology, and attention to detail set it apart from conventional options, making it the preferred choice for discerning customers. Independent testing confirms its performance advantages and validates the premium quality that customers experience.</p>
-
-<h3>Customer Testimonials and Professional Reviews</h3>
-<p>Thousands of satisfied customers have shared their positive experiences, highlighting the product's reliability, performance, and exceptional value. Professional reviewers consistently praise its innovative features and superior build quality, making it a top recommendation in industry publications. Customer feedback demonstrates consistent satisfaction and repeat purchases, validating the product's exceptional quality and performance.</p>
-
-<h3>Comprehensive Warranty and Support Services</h3>
-<p>Comprehensive warranty coverage provides peace of mind, while our dedicated support team ensures prompt assistance when needed. The extensive service network guarantees convenient access to maintenance and repairs, protecting your investment for years to come. Professional support staff are available to answer questions and provide technical assistance whenever required.</p>
-
-<h3>Frequently Asked Questions and Expert Answers</h3>
-<p><strong>Is this product suitable for professional and daily use?</strong> Absolutely! The robust design and reliable performance make it perfect for both professional applications and regular daily use while maintaining peak efficiency throughout its extended lifespan.</p>
-
-<p><strong>What makes this product different from competitors?</strong> The combination of premium materials, advanced technology, rigorous quality control, and comprehensive support ensures superior performance and longevity that sets it apart from standard alternatives in the marketplace.</p>
-
-<p><strong>How does the warranty protection work?</strong> Our comprehensive warranty covers manufacturing defects and performance issues, providing complete protection for your investment with fast, reliable service and genuine replacement parts when needed.</p>
-
 <h3>Final Recommendation and Conclusion</h3>
 <p>Transform your experience with this exceptional product that combines innovation, quality, and value in one outstanding package. With proven reliability, comprehensive support, and customer satisfaction guarantee, it represents the perfect choice for those who demand excellence and performance. The investment in quality pays dividends through years of reliable service and outstanding results.</p>
 
@@ -420,19 +427,60 @@ function validateAndFixContent(content: any, primaryKeyword: string, storeUrl: s
 
 <p>For additional product information and industry insights, visit <a href="https://www.consumerreports.org" target="_blank">Consumer Reports</a> or check <a href="https://www.which.co.uk" target="_blank">Which? Product Reviews</a> for independent evaluations and expert recommendations.</p>
 </div>`;
+  } else {
+    // Only make minimal adjustments to existing content
+    let modifiedContent = content.long_description;
+    
+    // Check if content starts with the primary keyword
+    const textContent = modifiedContent.replace(/<[^>]*>/g, '').trim();
+    if (!textContent.toLowerCase().startsWith(extractedPrimaryKeyword.toLowerCase())) {
+      console.log('Adjusting long description to start with primary keyword');
+      // Prepend an h1 with the keyword if it doesn't exist
+      if (!modifiedContent.includes('<h1>') && !modifiedContent.includes('<H1>')) {
+        modifiedContent = `<h1>${extractedPrimaryKeyword}</h1>\n${modifiedContent}`;
+      }
+    }
+    
+    // Ensure minimum internal links exist (only add if completely missing)
+    const internalLinksCount = (modifiedContent.match(/href="[^"]*\/product-category\//g) || []).length;
+    if (internalLinksCount === 0) {
+      console.log('Adding minimal internal links to content');
+      modifiedContent += `\n<p>Explore more in our <a href="${storeUrl}/product-category/featured">featured collection</a>, <a href="${storeUrl}/product-category/bestsellers">bestsellers</a>, or <a href="${storeUrl}/product-category/new-arrivals">new arrivals</a>.</p>`;
+    }
+    
+    // Ensure minimum external links exist (only add if completely missing)
+    const externalLinksCount = (modifiedContent.match(/target="_blank"(?!\s+rel="nofollow")/g) || []).length;
+    if (externalLinksCount === 0) {
+      console.log('Adding minimal external links to content');
+      modifiedContent += `\n<p>For additional information, visit <a href="https://www.consumerreports.org" target="_blank">Consumer Reports</a> or <a href="https://www.which.co.uk" target="_blank">Which? Product Reviews</a>.</p>`;
+    }
+    
+    content.long_description = modifiedContent;
   }
 
-  // Fix short description - ensure it starts with primary keyword
-  if (!content.short_description || !content.short_description.toLowerCase().startsWith(extractedPrimaryKeyword.toLowerCase())) {
-    console.log('Fixing short description to start with primary keyword');
+  // Only fix short description if it's completely missing or very short
+  if (!content.short_description || content.short_description.trim().length < 20) {
+    console.log('Short description missing or too short, generating new one');
     content.short_description = `${shortKeyword} delivers exceptional quality and superior performance with innovative features. Experience reliability and value that exceeds expectations. Perfect for your needs!`;
+  } else {
+    // Only adjust if it doesn't start with the keyword - prepend instead of replacing
+    if (!content.short_description.toLowerCase().startsWith(extractedPrimaryKeyword.toLowerCase())) {
+      console.log('Adjusting short description to start with primary keyword');
+      const originalDesc = content.short_description;
+      const maxLength = 160 - shortKeyword.length - 2; // Account for ": "
+      if (originalDesc.length > maxLength) {
+        content.short_description = `${shortKeyword}: ${originalDesc.substring(0, maxLength)}`;
+      } else {
+        content.short_description = `${shortKeyword}: ${originalDesc}`;
+      }
+    }
   }
 
-  // Fix permalink - ensure it starts with primary keyword and is max 45 chars
+  // Always generate optimized permalink
   content.permalink = createOptimalPermalink(extractedPrimaryKeyword);
   console.log('Generated optimized permalink:', content.permalink, 'Length:', content.permalink.length);
 
-  // Fix alt text - ensure it contains primary keyword
+  // Fix alt text only if missing or doesn't contain keyword
   if (!content.alt_text || !content.alt_text.toLowerCase().includes(shortKeyword.toLowerCase())) {
     console.log('Fixing alt text to include primary keyword');
     content.alt_text = `${shortKeyword} product image showing premium quality features`;
@@ -481,8 +529,9 @@ function parseOpenAIResponse(response: any, primaryKeyword: string, storeUrl: st
     const extractedPrimary = extractPrimaryKeyword(primaryKeyword);
     const longDescription = content.long_description;
     if (extractedPrimary && longDescription) {
-      // Count exact matches of the primary keyword
-      const keywordRegex = new RegExp(extractedPrimary.toLowerCase(), 'gi');
+      // Escape special regex characters in the primary keyword
+      const escapedKeyword = escapeRegexCharacters(extractedPrimary.toLowerCase());
+      const keywordRegex = new RegExp(escapedKeyword, 'gi');
       const keywordCount = (longDescription.toLowerCase().match(keywordRegex) || []).length;
       const wordCount = longDescription.replace(/<[^>]*>/g, '').split(/\s+/).filter(word => word.length > 0).length;
       const density = (keywordCount / wordCount) * 100;

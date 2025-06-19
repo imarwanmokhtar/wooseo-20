@@ -2,7 +2,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { MultiStoreProvider } from "@/contexts/MultiStoreContext";
 import { SeoPluginProvider } from "@/contexts/SeoPluginContext";
@@ -19,6 +19,7 @@ import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import ProductsExtractor from "./pages/ProductsExtractor";
 import ContentHealth from "./pages/ContentHealth";
+import BulkEditor from "./pages/BulkEditor";
 import Affiliate from "./pages/Affiliate";
 import NotFound from "./pages/NotFound";
 import "./App.css";
@@ -44,11 +45,13 @@ function App() {
                   <Route path="/content-generation" element={<ContentGeneration />} />
                   <Route path="/products-extractor" element={<ProductsExtractor />} />
                   <Route path="/content-health" element={<ContentHealth />} />
+                  <Route path="/bulk-editor" element={<BulkEditor />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/payment-success" element={<PaymentSuccess />} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/blog/:slug" element={<BlogPost />} />
-                  <Route path="/affiliate" element={<Affiliate />} />
+                  <Route path="/affiliate" element={<Navigate to="/404" replace />} />
+                  <Route path="/404" element={<NotFound />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </SeoPluginProvider>

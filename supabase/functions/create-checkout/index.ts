@@ -16,10 +16,11 @@ serve(async (req) => {
 
   try {
     console.log("Creating checkout session...");
+    console.log("Available environment variables:", Object.keys(Deno.env.toObject()));
     
     // Get the request body
-    const { credits, price } = await req.json();
-    console.log("Request data:", { credits, price });
+    const requestBody = await req.json();
+    console.log("Request data:", requestBody);
 
     // Authenticate user
     const supabaseClient = createClient(
@@ -28,7 +29,10 @@ serve(async (req) => {
     );
 
     const authHeader = req.headers.get("Authorization");
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader) {
+      console.error("No authorization header provided");
       throw new Error("No authorization header");
     }
 
@@ -36,13 +40,29 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     
     if (userError || !userData.user) {
+      console.error("Authentication failed:", userError);
       throw new Error("User not authenticated");
     }
 
     console.log("User authenticated:", userData.user.email);
 
+    // Check if Stripe secret key is available and trim any whitespace/newlines
+    const rawStripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    const stripeSecretKey = rawStripeKey?.replace(/\r?\n/g, '').trim();
+    console.log("Raw Stripe key:", rawStripeKey ? `${rawStripeKey.length} chars` : "Not found");
+    console.log("Cleaned Stripe key:", stripeSecretKey ? `${stripeSecretKey.length} chars` : "Not found");
+    console.log("Stripe secret key starts with:", stripeSecretKey ? stripeSecretKey.substring(0, 7) + "..." : "N/A");
+    
+    if (!stripeSecretKey || stripeSecretKey.length === 0) {
+      console.error("Stripe secret key not found or empty after cleaning");
+      console.error("Available env vars:", Object.keys(Deno.env.toObject()));
+      throw new Error("Stripe configuration missing");
+    }
+
+    console.log("Stripe secret key found and cleaned, initializing Stripe...");
+
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2023-10-16",
     });
 
@@ -61,37 +81,79 @@ serve(async (req) => {
     }
 
     // Get the origin and ensure it's properly formatted
-    const origin = req.headers.get("origin") || "http://localhost:8080";
+    const origin = req.headers.get("origin") || "https://wooseo.lovable.app";
     console.log("Origin for redirect URLs:", origin);
 
-    // Create checkout session with corrected URLs
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : userData.user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `${credits} Credits`,
-              description: `${credits} credits for SEO content generation`,
-            },
-            unit_amount: price * 100, // Convert to cents
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/dashboard`,
-      metadata: {
-        user_id: userData.user.id,
-        credits: credits.toString(),
-      },
-    });
+    let sessionConfig;
 
-    console.log("Checkout session created:", session.id);
-    console.log("Success URL set to:", `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`);
+    if (requestBody.type === 'one-time') {
+      // One-time payment for credits
+      sessionConfig = {
+        customer: customerId,
+        customer_email: customerId ? undefined : userData.user.email,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `${requestBody.credits} Credits`,
+                description: `${requestBody.credits} credits for AI SEO content generation`,
+              },
+              unit_amount: requestBody.price * 100, // Convert to cents
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/dashboard`,
+        metadata: {
+          user_id: userData.user.id,
+          credits: requestBody.credits ? requestBody.credits.toString() : '0',
+          type: 'one-time'
+        },
+      };
+    } else if (requestBody.type === 'subscription') {
+      // Monthly subscription for bulk editor
+      sessionConfig = {
+        customer: customerId,
+        customer_email: customerId ? undefined : userData.user.email,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: "Unlimited Bulk Editor",
+                description: "Monthly subscription for unlimited bulk editing capabilities",
+              },
+              unit_amount: requestBody.price * 100, // Convert to cents
+              recurring: {
+                interval: "month",
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/dashboard`,
+        metadata: {
+          user_id: userData.user.id,
+          plan: requestBody.plan,
+          type: 'subscription'
+        },
+      };
+    } else {
+      throw new Error("Invalid payment type");
+    }
+
+    console.log("Creating checkout session with config:", JSON.stringify(sessionConfig, null, 2));
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create(sessionConfig);
+
+    console.log("Checkout session created successfully:", session.id);
+    console.log("Checkout URL:", session.url);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -99,7 +161,13 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error creating checkout session:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("Error details:", error.message);
+    console.error("Error stack:", error.stack);
+    
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      details: "Check the edge function logs for more information"
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

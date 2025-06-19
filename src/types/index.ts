@@ -1,4 +1,3 @@
-
 export interface Product {
   id: number;
   name: string;
@@ -71,6 +70,11 @@ export interface Product {
   meta_data: any[];
   stock_status: string;
   has_options: boolean;
+  // SEO-related fields
+  meta_title?: string;
+  meta_description?: string;
+  focus_keywords?: string;
+  alt_text?: string;
 }
 
 export interface Category {
