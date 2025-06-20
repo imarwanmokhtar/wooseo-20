@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { BulkEditorProduct } from '@/pages/BulkEditor';
@@ -15,6 +15,10 @@ interface BulkEditorGridProps {
   onSelectionChange: (productIds: Set<number>) => void;
   categories: Category[];
   onSaveChanges: () => void;
+  loadMoreProducts: () => void;
+  hasMoreProducts: boolean;
+  isLoadingMore: boolean;
+  isSearching: boolean;
 }
 
 const BulkEditorGrid: React.FC<BulkEditorGridProps> = ({
@@ -23,10 +27,15 @@ const BulkEditorGrid: React.FC<BulkEditorGridProps> = ({
   selectedProducts,
   onSelectionChange,
   categories,
-  onSaveChanges
+  onSaveChanges,
+  loadMoreProducts,
+  hasMoreProducts,
+  isLoadingMore,
+  isSearching
 }) => {
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef<HTMLDivElement>(null);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -60,11 +69,34 @@ const BulkEditorGrid: React.FC<BulkEditorGridProps> = ({
     setExpandedProducts(newExpanded);
   }, [expandedProducts]);
 
+  // Intersection Observer for infinite scrolling within the table container
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && hasMoreProducts && !isLoadingMore && !isSearching) {
+          loadMoreProducts();
+        }
+      },
+      { 
+        threshold: 0.1,
+        root: scrollRef.current, // Only observe within the scroll container
+        rootMargin: '100px' // Trigger 100px before reaching the bottom
+      }
+    );
+
+    if (loadingRef.current && scrollRef.current) {
+      observer.observe(loadingRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMoreProducts, isLoadingMore, loadMoreProducts, isSearching]);
+
   const unsavedChangesCount = products.filter(p => p.isEdited).length;
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      {/* Fixed Toolbar - removed undo/redo buttons */}
+      {/* Fixed Toolbar */}
       <BulkEditorGridToolbar
         onSaveChanges={onSaveChanges}
         unsavedChangesCount={unsavedChangesCount}
@@ -72,7 +104,7 @@ const BulkEditorGrid: React.FC<BulkEditorGridProps> = ({
 
       {/* Scrollable Table Container */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full w-full">
+        <ScrollArea className="h-full w-full" ref={scrollRef}>
           <div className="min-w-[1500px] pb-4">
             {/* Table Header */}
             <BulkEditorTableHeader
@@ -96,6 +128,22 @@ const BulkEditorGrid: React.FC<BulkEditorGridProps> = ({
                 />
               ))}
             </div>
+
+            {/* Loading trigger and indicator - only show if not searching */}
+            {!isSearching && (
+              <div ref={loadingRef} className="flex justify-center py-4">
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="text-gray-600">Loading more products...</span>
+                  </div>
+                ) : hasMoreProducts ? (
+                  <div className="text-gray-500 text-sm">Scroll down to load more products</div>
+                ) : (
+                  <div className="text-gray-500 text-sm">All products loaded</div>
+                )}
+              </div>
+            )}
           </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>

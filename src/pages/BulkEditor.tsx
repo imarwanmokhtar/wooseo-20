@@ -64,7 +64,6 @@ const BulkEditor: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
-  const loadingRef = useRef<HTMLDivElement>(null);
   
   const [filters, setFilters] = useState<FilterOptions>({
     categories: [],
@@ -168,7 +167,7 @@ const BulkEditor: React.FC = () => {
     },
     enabled: !!credentials,
     retry: 2, // Retry twice on failure
-    retryDelay: 1000, // Wait 1 second between retries
+    retryDelay: 1000 // Wait 1 second between retries
   });
 
   // Fetch products with infinite loading
@@ -210,25 +209,6 @@ const BulkEditor: React.FC = () => {
     },
     enabled: !!credentials,
   });
-
-  // Intersection Observer for infinite scrolling
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting && hasMoreProducts && !isLoadingMore && !productsLoading) {
-          loadMoreProducts();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (loadingRef.current) {
-      observer.observe(loadingRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasMoreProducts, isLoadingMore, productsLoading]);
 
   // Check bulk editor access on component mount and refresh
   useEffect(() => {
@@ -344,7 +324,6 @@ const BulkEditor: React.FC = () => {
     toast.success(`Updated ${productIds.length} products`);
   }, [products]);
 
-  // ... keep existing code (handleSyncToWooCommerce function)
   const handleSyncToWooCommerce = useCallback(async () => {
     const editedProducts = products.filter(p => p.isEdited);
     console.log('Syncing products to WooCommerce:', editedProducts);
@@ -576,7 +555,6 @@ const BulkEditor: React.FC = () => {
     );
   }
 
-  // ... keep existing code (conditional returns for access checks and errors)
   if (!bulkEditorAccess) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -779,7 +757,7 @@ const BulkEditor: React.FC = () => {
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-sm text-green-700">
                 Loaded {products.length} of {totalProducts} total products
-                {hasMoreProducts && !isSearching && ' - Scroll down to load more'}
+                {hasMoreProducts && !isSearching && ' - Scroll within the products table to load more'}
               </p>
             </div>
 
@@ -810,26 +788,13 @@ const BulkEditor: React.FC = () => {
                   onSelectionChange={setSelectedProducts}
                   categories={categories}
                   onSaveChanges={handleSaveChanges}
+                  loadMoreProducts={loadMoreProducts}
+                  hasMoreProducts={hasMoreProducts}
+                  isLoadingMore={isLoadingMore}
+                  isSearching={isSearching}
                 />
               </Card>
             </div>
-
-            {/* Infinite Loading Trigger */}
-            {hasMoreProducts && !isSearching && (
-              <div 
-                ref={loadingRef}
-                className="flex justify-center py-4"
-              >
-                {isLoadingMore ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <span className="text-gray-600">Loading more products...</span>
-                  </div>
-                ) : (
-                  <div className="text-gray-500">Scroll down to load more products</div>
-                )}
-              </div>
-            )}
           </div>
         )}
 
