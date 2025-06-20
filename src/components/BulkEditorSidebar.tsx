@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { FilterOptions } from '@/pages/BulkEditor';
 import { Category } from '@/types';
 import { Filter, X } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface BulkEditorSidebarProps {
   filters: FilterOptions;
@@ -99,20 +100,22 @@ const BulkEditorSidebar: React.FC<BulkEditorSidebarProps> = ({
           {/* Categories */}
           <div>
             <Label className="text-sm font-medium mb-2 block">Categories</Label>
-            <div className="space-y-1 max-h-32 overflow-auto">
-              {categories.slice(0, 5).map(category => (
-                <div key={category.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`category-${category.id}`}
-                    checked={filters.categories.includes(category.id)}
-                    onCheckedChange={(checked) => handleCategoryToggle(category.id, checked as boolean)}
-                  />
-                  <Label htmlFor={`category-${category.id}`} className="text-xs flex-1">
-                    {category.name}
-                  </Label>
-                </div>
-              ))}
-            </div>
+            <ScrollArea className="h-32 border rounded-md p-2">
+              <div className="space-y-1">
+                {categories.map(category => (
+                  <div key={category.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`category-${category.id}`}
+                      checked={filters.categories.includes(category.id)}
+                      onCheckedChange={(checked) => handleCategoryToggle(category.id, checked as boolean)}
+                    />
+                    <Label htmlFor={`category-${category.id}`} className="text-xs flex-1 cursor-pointer">
+                      {category.name} {category.count !== undefined && `(${category.count})`}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
 
           {/* Stock Status */}
@@ -232,20 +235,22 @@ const BulkEditorSidebar: React.FC<BulkEditorSidebarProps> = ({
         {/* Categories */}
         <div>
           <Label className="text-sm font-medium mb-3 block">Categories</Label>
-          <div className="space-y-2 max-h-40 overflow-auto">
-            {categories.map(category => (
-              <div key={category.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`category-${category.id}`}
-                  checked={filters.categories.includes(category.id)}
-                  onCheckedChange={(checked) => handleCategoryToggle(category.id, checked as boolean)}
-                />
-                <Label htmlFor={`category-${category.id}`} className="text-xs flex-1">
-                  {category.name} ({category.count})
-                </Label>
-              </div>
-            ))}
-          </div>
+          <ScrollArea className="h-40 border rounded-md p-2">
+            <div className="space-y-2">
+              {categories.map(category => (
+                <div key={category.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`category-${category.id}`}
+                    checked={filters.categories.includes(category.id)}
+                    onCheckedChange={(checked) => handleCategoryToggle(category.id, checked as boolean)}
+                  />
+                  <Label htmlFor={`category-${category.id}`} className="text-xs flex-1 cursor-pointer">
+                    {category.name} {category.count !== undefined && `(${category.count})`}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
 
         {/* Stock Status */}

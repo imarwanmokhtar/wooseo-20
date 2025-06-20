@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,9 +58,13 @@ const BulkEditor: React.FC = () => {
   const [showSyncDialog, setShowSyncDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProcessingSubscription, setIsProcessingSubscription] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+  const loadingRef = useRef<HTMLDivElement>(null);
   
   const [filters, setFilters] = useState<FilterOptions>({
     categories: [],
@@ -73,6 +76,7 @@ const BulkEditor: React.FC = () => {
 
   // Determine if we're searching - affects pagination behavior
   const isSearching = searchQuery.trim().length > 0;
+  const productsPerPage = 100;
 
   // Fetch WooCommerce credentials - enabled only when we have activeStore and user
   const { data: credentials, isLoading: credentialsLoading, error: credentialsError } = useQuery({
@@ -88,22 +92,86 @@ const BulkEditor: React.FC = () => {
     enabled: !!activeStore?.id && !!user?.id,
   });
 
-  // Fetch categories - enabled only when we have credentials
-  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
-    queryKey: ['woo-categories', activeStore?.id, credentials],
+  // Fetch categories with improved error handling and product counts
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useQuery({
+    queryKey: ['woo-categories-with-counts', activeStore?.id, credentials],
     queryFn: async () => {
       if (!credentials) {
         console.log('No credentials available for fetching categories');
         return [];
       }
-      console.log('Fetching categories with credentials:', credentials.url);
-      return await fetchCategories(credentials);
+      
+      console.log('Fetching categories with product counts');
+      console.log('Using credentials:', { url: credentials.url, hasKey: !!credentials.consumer_key });
+      
+      try {
+        // Try multiple category endpoints for better compatibility
+        const endpoints = [
+          `${credentials.url}/wp-json/wc/v3/products/categories?per_page=100&hide_empty=false`,
+          `${credentials.url}/wp-json/wc/v3/products/categories?per_page=100`,
+          `${credentials.url}/wp-json/wc/v2/products/categories?per_page=100&hide_empty=false`
+        ];
+
+        const auth = btoa(`${credentials.consumer_key}:${credentials.consumer_secret}`);
+        let lastError = null;
+
+        for (const endpoint of endpoints) {
+          try {
+            console.log('Trying category endpoint:', endpoint);
+            
+            const response = await fetch(endpoint, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Basic ${auth}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+            });
+            
+            console.log('Category response status:', response.status);
+            console.log('Category response headers:', Object.fromEntries(response.headers.entries()));
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`Categories fetch failed for ${endpoint}:`, response.status, errorText);
+              lastError = new Error(`HTTP ${response.status}: ${errorText}`);
+              continue; // Try next endpoint
+            }
+            
+            const categoriesData = await response.json();
+            console.log('Successfully fetched categories:', categoriesData.length);
+            console.log('Sample categories:', categoriesData.slice(0, 3));
+            
+            // Ensure each category has a count property
+            const categoriesWithCounts = categoriesData.map((cat: any) => ({
+              ...cat,
+              count: cat.count || 0
+            }));
+            
+            return categoriesWithCounts;
+          } catch (endpointError) {
+            console.error(`Error with endpoint ${endpoint}:`, endpointError);
+            lastError = endpointError;
+            continue; // Try next endpoint
+          }
+        }
+        
+        // If all endpoints failed, throw the last error
+        throw lastError || new Error('All category endpoints failed');
+        
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        // Return empty array instead of throwing to prevent the whole component from failing
+        console.log('Returning empty categories array due to error');
+        return [];
+      }
     },
     enabled: !!credentials,
+    retry: 2, // Retry twice on failure
+    retryDelay: 1000, // Wait 1 second between retries
   });
 
-  // Fetch products - enabled only when we have credentials
-  // Updated query key to trigger fresh API calls when search changes
+  // Fetch products with infinite loading
   const { data: productsData, isLoading: productsLoading, refetch: refetchProducts, error: productsError } = useQuery({
     queryKey: ['woo-products', activeStore?.id, currentPage, filters.categories, searchQuery, credentials],
     queryFn: async () => {
@@ -113,35 +181,25 @@ const BulkEditor: React.FC = () => {
       }
       
       const trimmedQuery = searchQuery.trim();
-      console.log('Fetching products with search query:', trimmedQuery);
+      console.log('Fetching products with search query:', trimmedQuery, 'page:', currentPage);
       
       const params: any = {
-        per_page: isSearching ? 100 : 20,
+        per_page: productsPerPage,
+        page: currentPage,
         category: filters.categories.length > 0 ? filters.categories : undefined,
       };
 
-      // Only add pagination when not searching
-      if (!isSearching) {
-        params.page = currentPage;
-      }
-
       // Handle search by ID or title
       if (trimmedQuery) {
-        // Check if search query is a number (potential product ID)
         const isNumeric = /^\d+$/.test(trimmedQuery);
         
         if (isNumeric) {
-          // Search by product ID using the 'include' parameter
           params.include = [parseInt(trimmedQuery)];
-          console.log('Searching by product ID:', trimmedQuery);
-          // Remove other parameters when searching by ID to get exact match
           delete params.category;
           delete params.per_page;
           delete params.page;
         } else {
-          // Search by product title/name
           params.search = trimmedQuery;
-          console.log('Searching by product title:', trimmedQuery);
         }
       }
       
@@ -152,6 +210,25 @@ const BulkEditor: React.FC = () => {
     },
     enabled: !!credentials,
   });
+
+  // Intersection Observer for infinite scrolling
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && hasMoreProducts && !isLoadingMore && !productsLoading) {
+          loadMoreProducts();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadingRef.current) {
+      observer.observe(loadingRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMoreProducts, isLoadingMore, productsLoading]);
 
   // Check bulk editor access on component mount and refresh
   useEffect(() => {
@@ -194,6 +271,47 @@ const BulkEditor: React.FC = () => {
       };
     });
   }, []);
+
+  const loadMoreProducts = useCallback(async () => {
+    if (!hasMoreProducts || isLoadingMore || !credentials) return;
+    
+    setIsLoadingMore(true);
+    const nextPage = currentPage + 1;
+    
+    try {
+      const params: any = {
+        per_page: productsPerPage,
+        page: nextPage,
+        category: filters.categories.length > 0 ? filters.categories : undefined,
+      };
+
+      const trimmedQuery = searchQuery.trim();
+      if (trimmedQuery && !/^\d+$/.test(trimmedQuery)) {
+        params.search = trimmedQuery;
+      }
+
+      const result = await fetchProducts(credentials, params);
+      
+      if (result.products.length > 0) {
+        const newProducts = transformProducts(result.products);
+        setProducts(prev => [...prev, ...newProducts]);
+        setCurrentPage(nextPage);
+        setTotalProducts(result.total);
+        
+        // Check if we have more products to load
+        if (nextPage >= result.totalPages) {
+          setHasMoreProducts(false);
+        }
+      } else {
+        setHasMoreProducts(false);
+      }
+    } catch (error) {
+      console.error('Error loading more products:', error);
+      toast.error('Failed to load more products');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [credentials, currentPage, filters.categories, searchQuery, hasMoreProducts, isLoadingMore, transformProducts]);
 
   const handleProductUpdate = useCallback((productId: number, field: string, value: any) => {
     console.log('Updating product:', productId, field, value);
@@ -242,7 +360,6 @@ const BulkEditor: React.FC = () => {
       let successCount = 0;
       let errorCount = 0;
       
-      // Update each edited product via WooCommerce API
       for (const product of editedProducts) {
         try {
           const updateData: any = {
@@ -256,17 +373,14 @@ const BulkEditor: React.FC = () => {
             short_description: product.short_description
           };
 
-          // Only add sale_price if it has a value
           if (product.sale_price && product.sale_price !== '') {
             updateData.sale_price = product.sale_price.toString();
           }
 
-          // Only add stock_quantity if manage_stock is true
           if (product.manage_stock && product.stock_quantity !== null) {
             updateData.stock_quantity = product.stock_quantity;
           }
 
-          // Format categories correctly for WooCommerce API
           if (product.categories && product.categories.length > 0) {
             updateData.categories = product.categories.map(cat => ({ id: cat.id }));
           }
@@ -314,7 +428,6 @@ const BulkEditor: React.FC = () => {
       }
 
       if (successCount > 0) {
-        // Mark successfully synced products as saved
         const syncedProducts = products.map(p => 
           editedProducts.some(edited => edited.id === p.id && successCount > 0) 
             ? { ...p, isEdited: false } 
@@ -349,6 +462,9 @@ const BulkEditor: React.FC = () => {
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
+    setProducts([]);
+    setCurrentPage(1);
+    setHasMoreProducts(true);
     try {
       await refetchProducts();
       toast.success('Products refreshed');
@@ -361,15 +477,9 @@ const BulkEditor: React.FC = () => {
   const handleSearch = useCallback((query: string) => {
     console.log('Search query changed:', query);
     setSearchQuery(query);
-    setCurrentPage(1); // Reset to first page when searching
-    // Clear existing products when search changes to avoid showing stale results
-    if (query.trim() !== searchQuery.trim()) {
-      setProducts([]);
-    }
-  }, [searchQuery]);
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
+    setCurrentPage(1);
+    setHasMoreProducts(true);
+    setProducts([]);
   }, []);
 
   const handleSubscriptionPurchase = useCallback(async () => {
@@ -389,18 +499,28 @@ const BulkEditor: React.FC = () => {
     }
   }, [user]);
 
-  // Update products when data changes - always update when we get fresh data
+  // Update products when data changes - reset for new searches/filters
   useEffect(() => {
     if (productsData?.products) {
       console.log('Updating products with fresh data:', productsData.products.length);
       const transformedProducts = transformProducts(productsData.products);
-      setProducts(transformedProducts);
+      
+      if (currentPage === 1) {
+        // First page or new search - replace products
+        setProducts(transformedProducts);
+      } else {
+        // Subsequent pages - this is handled by loadMoreProducts
+        return;
+      }
+      
       setTotalPages(productsData.totalPages);
+      setTotalProducts(productsData.total);
+      setHasMoreProducts(currentPage < productsData.totalPages);
       setIsRefreshing(false);
     }
-  }, [productsData, transformProducts]);
+  }, [productsData, transformProducts, currentPage]);
 
-  // Apply filters only when not searching (search is handled at API level)
+  // Apply filters only when not searching
   useEffect(() => {
     console.log('Applying filters to products:', products.length);
     console.log('Is searching:', isSearching);
@@ -408,9 +528,7 @@ const BulkEditor: React.FC = () => {
     
     let filtered = [...products];
 
-    // When searching, don't apply additional filters since search is handled at API level
     if (!isSearching) {
-      // Category filter - check if any product category matches selected categories
       if (filters.categories.length > 0) {
         filtered = filtered.filter(product => {
           const productCategoryIds = product.categories.map(cat => cat.id);
@@ -419,21 +537,18 @@ const BulkEditor: React.FC = () => {
         console.log('After category filter:', filtered.length);
       }
 
-      // Stock status filter
       if (filters.stockStatus.length > 0) {
         filtered = filtered.filter(product =>
           filters.stockStatus.includes(product.stock_status)
         );
       }
 
-      // Product type filter
       if (filters.productType.length > 0) {
         filtered = filtered.filter(product =>
           filters.productType.includes(product.product_type)
         );
       }
 
-      // Price range filter
       filtered = filtered.filter(product => {
         const price = parseFloat(product.regular_price) || 0;
         return price >= filters.priceRange.min && price <= filters.priceRange.max;
@@ -445,7 +560,6 @@ const BulkEditor: React.FC = () => {
   }, [products, filters, isSearching, searchQuery]);
 
   // NOW WE CAN HAVE CONDITIONAL LOGIC AFTER ALL HOOKS ARE DECLARED
-  // If user doesn't have bulk editor access, show subscription prompt
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -537,7 +651,6 @@ const BulkEditor: React.FC = () => {
 
   const isLoading = credentialsLoading || categoriesLoading || productsLoading;
 
-  // Show error messages for debugging
   if (credentialsError) {
     console.error('Credentials error:', credentialsError);
   }
@@ -548,7 +661,8 @@ const BulkEditor: React.FC = () => {
     console.error('Products error:', productsError);
   }
 
-  if (credentialsError || categoriesError || productsError) {
+  // Improved error handling - don't fail completely if only categories fail
+  if (credentialsError || productsError) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
@@ -556,7 +670,7 @@ const BulkEditor: React.FC = () => {
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Error loading data: {credentialsError?.message || categoriesError?.message || productsError?.message}
+              Error loading data: {credentialsError?.message || productsError?.message}
               <br />
               Please check your WooCommerce store connection and try again.
             </AlertDescription>
@@ -573,6 +687,9 @@ const BulkEditor: React.FC = () => {
       </div>
     );
   }
+
+  // Show warning if categories failed but continue with products
+  const showCategoriesWarning = categoriesError && !credentialsError && !productsError;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -617,6 +734,24 @@ const BulkEditor: React.FC = () => {
           </div>
         </div>
 
+        {/* Categories Warning */}
+        {showCategoriesWarning && (
+          <Alert className="mb-4" variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Warning: Failed to load categories. You can still edit products but category filtering may be limited.
+              <Button 
+                variant="link" 
+                size="sm"
+                onClick={() => refetchCategories()}
+                className="ml-2 p-0 h-auto"
+              >
+                Retry loading categories
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="text-lg">Loading products...</div>
@@ -639,6 +774,14 @@ const BulkEditor: React.FC = () => {
                 </p>
               </div>
             )}
+
+            {/* Total Products Info */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="text-sm text-green-700">
+                Loaded {products.length} of {totalProducts} total products
+                {hasMoreProducts && !isSearching && ' - Scroll down to load more'}
+              </p>
+            </div>
 
             {/* Horizontal Smart Filters */}
             <BulkEditorSidebar
@@ -671,26 +814,20 @@ const BulkEditor: React.FC = () => {
               </Card>
             </div>
 
-            {/* Pagination - only show when not searching */}
-            {!isSearching && totalPages > 1 && (
-              <div className="flex justify-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-                <span className="px-4 py-2 text-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
+            {/* Infinite Loading Trigger */}
+            {hasMoreProducts && !isSearching && (
+              <div 
+                ref={loadingRef}
+                className="flex justify-center py-4"
+              >
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="text-gray-600">Loading more products...</span>
+                  </div>
+                ) : (
+                  <div className="text-gray-500">Scroll down to load more products</div>
+                )}
               </div>
             )}
           </div>

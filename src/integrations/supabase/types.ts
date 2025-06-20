@@ -486,8 +486,29 @@ export type Database = {
         }
         Returns: string
       }
+      expire_subscriptions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       generate_affiliate_code: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      grant_bulk_editor_access: {
+        Args: { user_email: string; days_duration?: number }
+        Returns: string
+      }
+      list_bulk_editor_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          email: string
+          subscription_active: boolean
+          subscription_end: string
+          days_remaining: number
+        }[]
+      }
+      revoke_bulk_editor_access: {
+        Args: { user_email: string }
         Returns: string
       }
     }
