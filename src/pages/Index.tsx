@@ -6,6 +6,7 @@ import AppShowcaseSection from '@/components/AppShowcaseSection';
 import CoreBenefitsSection from '@/components/CoreBenefitsSection';
 import Testimonials from '@/components/Testimonials';
 import PricingSection from '@/components/PricingSection';
+import FAQSection from '@/components/FAQSection';
 import FinalCTASection from '@/components/FinalCTASection';
 import Footer from '@/components/Footer';
 
@@ -18,6 +19,7 @@ const Index = () => {
       <CoreBenefitsSection />
       <Testimonials />
       <PricingSection />
+      <FAQSection />
       <FinalCTASection />
       <Footer />
     </div>

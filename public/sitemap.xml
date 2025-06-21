@@ -3,38 +3,38 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://wooseos.com/</loc>
+    <lastmod>2025-06-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://wooseos.com/dashboard</loc>
+    <loc>https://wooseos.com/docs</loc>
+    <lastmod>2025-06-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://wooseos.com/login</loc>
+    <loc>https://wooseos.com/docs/getting-started</loc>
+    <lastmod>2025-06-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://wooseos.com/register</loc>
+    <loc>https://wooseos.com/docs/api-reference</loc>
+    <lastmod>2025-06-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://wooseos.com/reset-password</loc>
+    <loc>https://wooseos.com/docs/video-tutorials</loc>
+    <lastmod>2025-06-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://wooseos.com/settings</loc>
-  </url>
-  <url>
-    <loc>https://wooseos.com/content-generation</loc>
-  </url>
-  <url>
-    <loc>https://wooseos.com/products-extractor</loc>
-  </url>
-  <url>
-    <loc>https://wooseos.com/content-health</loc>
-  </url>
-  <url>
-    <loc>https://wooseos.com/payment-success</loc>
-  </url>
-  <url>
-    <loc>https://wooseos.com/blog</loc>
-  </url>
-  <url>
-    <loc>https://wooseos.com/affiliate</loc>
+    <loc>https://wooseos.com/docs/best-practices</loc>
+    <lastmod>2025-06-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
 </urlset>

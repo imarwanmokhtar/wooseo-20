@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -22,6 +21,7 @@ import ContentHealth from "./pages/ContentHealth";
 import BulkEditor from "./pages/BulkEditor";
 import Affiliate from "./pages/Affiliate";
 import NotFound from "./pages/NotFound";
+import Docs from "./pages/Docs";
 import "./App.css";
 
 const queryClient = new QueryClient();
@@ -48,8 +48,8 @@ function App() {
                   <Route path="/bulk-editor" element={<BulkEditor />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/payment-success" element={<PaymentSuccess />} />
-                  <Route path="/blog" element={<Blog />} />
-                  <Route path="/blog/:slug" element={<BlogPost />} />
+                  <Route path="/docs" element={<Docs />} />
+                  <Route path="/docs/:slug" element={<BlogPost />} />
                   <Route path="/affiliate" element={<Navigate to="/404" replace />} />
                   <Route path="/404" element={<NotFound />} />
                   <Route path="*" element={<NotFound />} />
