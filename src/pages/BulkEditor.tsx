@@ -64,6 +64,7 @@ const BulkEditor: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
+  const [isSelectingAll, setIsSelectingAll] = useState(false);
   
   const [filters, setFilters] = useState<FilterOptions>({
     categories: [],
@@ -75,7 +76,7 @@ const BulkEditor: React.FC = () => {
 
   // Determine if we're searching - affects pagination behavior
   const isSearching = searchQuery.trim().length > 0;
-  const productsPerPage = 100;
+  const productsPerPage = 20; // Changed from 100 to 20
 
   // Fetch WooCommerce credentials - enabled only when we have activeStore and user
   const { data: credentials, isLoading: credentialsLoading, error: credentialsError } = useQuery({
@@ -171,7 +172,7 @@ const BulkEditor: React.FC = () => {
   });
 
   // Fetch products with infinite loading
-  const { data: productsData, isLoading: productsLoading, refetch: refetchProducts, error: productsError } = useQuery({
+  const { data: productsData, refetch: refetchProducts, error: productsError } = useQuery({
     queryKey: ['woo-products', activeStore?.id, currentPage, filters.categories, searchQuery, credentials],
     queryFn: async () => {
       if (!credentials) {
@@ -323,6 +324,71 @@ const BulkEditor: React.FC = () => {
     setProducts(newProducts);
     toast.success(`Updated ${productIds.length} products`);
   }, [products]);
+
+  // Optimized select all function using total count instead of fetching all IDs
+  const handleSelectAll = useCallback(async (checked: boolean) => {
+    if (!checked) {
+      setSelectedProducts(new Set());
+      return;
+    }
+
+    if (!credentials) {
+      toast.error('No credentials available');
+      return;
+    }
+
+    setIsSelectingAll(true);
+    
+    try {
+      // Use the current filter context to get accurate count
+      const params: any = {
+        per_page: 100, // Maximum per page to reduce API calls
+        category: filters.categories.length > 0 ? filters.categories : undefined,
+      };
+
+      const trimmedQuery = searchQuery.trim();
+      if (trimmedQuery && !/^\d+$/.test(trimmedQuery)) {
+        params.search = trimmedQuery;
+      }
+
+      const allIds: number[] = [];
+      let currentPageForIds = 1;
+      let hasMore = true;
+
+      // Fetch all product IDs in batches of 100
+      while (hasMore && allIds.length < 5000) { // Safety limit
+        try {
+          const result = await fetchProducts(credentials, { 
+            ...params, 
+            page: currentPageForIds,
+            fields: 'id' // Only fetch IDs to reduce payload
+          });
+          
+          const ids = result.products.map((p: any) => p.id);
+          allIds.push(...ids);
+          
+          if (result.products.length < 100 || currentPageForIds >= result.totalPages) {
+            hasMore = false;
+          } else {
+            currentPageForIds++;
+          }
+        } catch (error) {
+          console.error('Error fetching product IDs:', error);
+          hasMore = false;
+        }
+      }
+      
+      console.log('Selected all product IDs:', allIds.length);
+      setSelectedProducts(new Set(allIds));
+      toast.success(`Selected ${allIds.length} products`);
+      
+    } catch (error) {
+      console.error('Error selecting all products:', error);
+      toast.error('Failed to select all products');
+    } finally {
+      setIsSelectingAll(false);
+    }
+  }, [credentials, filters.categories, searchQuery]);
 
   const handleSyncToWooCommerce = useCallback(async () => {
     const editedProducts = products.filter(p => p.isEdited);
@@ -538,6 +604,9 @@ const BulkEditor: React.FC = () => {
     setFilteredProducts(filtered);
   }, [products, filters, isSearching, searchQuery]);
 
+  // Determine loading state - only show initial loading, not when loading more
+  const isInitialLoading = (credentialsLoading || categoriesLoading) || (currentPage === 1 && !productsData && !productsError);
+
   // NOW WE CAN HAVE CONDITIONAL LOGIC AFTER ALL HOOKS ARE DECLARED
   if (!user) {
     return (
@@ -627,19 +696,6 @@ const BulkEditor: React.FC = () => {
     );
   }
 
-  const isLoading = credentialsLoading || categoriesLoading || productsLoading;
-
-  if (credentialsError) {
-    console.error('Credentials error:', credentialsError);
-  }
-  if (categoriesError) {
-    console.error('Categories error:', categoriesError);
-  }
-  if (productsError) {
-    console.error('Products error:', productsError);
-  }
-
-  // Improved error handling - don't fail completely if only categories fail
   if (credentialsError || productsError) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -730,7 +786,7 @@ const BulkEditor: React.FC = () => {
           </Alert>
         )}
 
-        {isLoading ? (
+        {isInitialLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="text-lg">Loading products...</div>
           </div>
@@ -776,6 +832,10 @@ const BulkEditor: React.FC = () => {
               onBulkUpdate={handleBulkUpdate}
               categories={categories}
               products={products}
+              totalProducts={totalProducts}
+              onSelectionChange={setSelectedProducts}
+              onSelectAll={handleSelectAll}
+              isSelectingAll={isSelectingAll}
             />
 
             {/* Main Grid */}
@@ -792,6 +852,9 @@ const BulkEditor: React.FC = () => {
                   hasMoreProducts={hasMoreProducts}
                   isLoadingMore={isLoadingMore}
                   isSearching={isSearching}
+                  totalProducts={totalProducts}
+                  onSelectAll={handleSelectAll}
+                  isSelectingAll={isSelectingAll}
                 />
               </Card>
             </div>

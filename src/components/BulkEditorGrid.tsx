@@ -19,6 +19,9 @@ interface BulkEditorGridProps {
   hasMoreProducts: boolean;
   isLoadingMore: boolean;
   isSearching: boolean;
+  totalProducts: number;
+  onSelectAll: (checked: boolean) => void;
+  isSelectingAll: boolean;
 }
 
 const BulkEditorGrid: React.FC<BulkEditorGridProps> = ({
@@ -31,19 +34,14 @@ const BulkEditorGrid: React.FC<BulkEditorGridProps> = ({
   loadMoreProducts,
   hasMoreProducts,
   isLoadingMore,
-  isSearching
+  isSearching,
+  totalProducts,
+  onSelectAll,
+  isSelectingAll
 }) => {
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
-
-  const handleSelectAll = useCallback((checked: boolean) => {
-    if (checked) {
-      onSelectionChange(new Set(products.map(p => p.id)));
-    } else {
-      onSelectionChange(new Set());
-    }
-  }, [products, onSelectionChange]);
 
   const handleSelectProduct = useCallback((productId: number, checked: boolean) => {
     const newSelection = new Set(selectedProducts);
@@ -109,8 +107,9 @@ const BulkEditorGrid: React.FC<BulkEditorGridProps> = ({
             {/* Table Header */}
             <BulkEditorTableHeader
               selectedCount={selectedProducts.size}
-              totalCount={products.length}
-              onSelectAll={handleSelectAll}
+              totalCount={totalProducts}
+              onSelectAll={onSelectAll}
+              isSelectingAll={isSelectingAll}
             />
 
             {/* Table Body */}

@@ -3,9 +3,18 @@ import React, { useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem 
+} from '@/components/ui/dropdown-menu';
 import { BulkEditorProduct } from '@/pages/BulkEditor';
 import { Category } from '@/types';
 import { toast } from 'sonner';
+import { ChevronDown } from 'lucide-react';
 
 interface BulkEditorCellProps {
   productId: number;
@@ -73,13 +82,56 @@ const BulkEditorCell: React.FC<BulkEditorCellProps> = ({
     toast.success('Field updated');
   }, [productId, field, onUpdate]);
 
-  const handleCategoryChange = useCallback((categoryId: string) => {
-    const category = categories.find(cat => cat.id === parseInt(categoryId));
-    const categoryValue = category ? [{ id: category.id, name: category.name }] : [];
-    console.log('Category change:', productId, categoryValue);
-    onUpdate(productId, field, categoryValue);
-    toast.success('Field updated');
-  }, [categories, productId, field, onUpdate]);
+  const handleCategoryToggle = useCallback((categoryId: number, checked: boolean) => {
+    const currentCategories = value || [];
+    let newCategories;
+    
+    if (checked) {
+      // Add category if not already present
+      const category = categories.find(cat => cat.id === categoryId);
+      if (category && !currentCategories.some((cat: any) => cat.id === categoryId)) {
+        newCategories = [...currentCategories, { id: category.id, name: category.name }];
+      } else {
+        return; // Category already exists
+      }
+    } else {
+      // Remove category
+      newCategories = currentCategories.filter((cat: any) => cat.id !== categoryId);
+    }
+    
+    console.log('Category toggle:', productId, newCategories);
+    onUpdate(productId, field, newCategories);
+    toast.success('Categories updated');
+  }, [categories, productId, field, onUpdate, value]);
+
+  const renderCategoriesDropdown = () => {
+    const selectedCategoryIds = (value || []).map((cat: any) => cat.id);
+    const selectedCategoriesText = value && value.length > 0 
+      ? `${value.length} categories selected` 
+      : 'Select categories';
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="h-8 text-xs w-full justify-between">
+            <span className="truncate">{selectedCategoriesText}</span>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56 max-h-60 overflow-y-auto bg-white">
+          {categories.map((category) => (
+            <DropdownMenuCheckboxItem
+              key={category.id}
+              checked={selectedCategoryIds.includes(category.id)}
+              onCheckedChange={(checked) => handleCategoryToggle(category.id, checked)}
+            >
+              {category.name}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   const renderEditingInput = () => {
     switch (field) {
@@ -136,24 +188,7 @@ const BulkEditorCell: React.FC<BulkEditorCellProps> = ({
         );
 
       case 'categories':
-        const currentCategoryId = value?.[0]?.id?.toString() || '';
-        return (
-          <Select
-            value={currentCategoryId}
-            onValueChange={handleCategoryChange}
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map(category => (
-                <SelectItem key={category.id} value={category.id.toString()}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
+        return renderCategoriesDropdown();
 
       default:
         return (
@@ -172,7 +207,24 @@ const BulkEditorCell: React.FC<BulkEditorCellProps> = ({
 
   const renderDisplayValue = () => {
     if (field === 'categories') {
-      return <span>{value?.[0]?.name || 'No category'}</span>;
+      const categories = value || [];
+      if (categories.length === 0) {
+        return <span className="text-gray-500">No categories</span>;
+      }
+      return (
+        <div className="flex flex-wrap gap-1">
+          {categories.slice(0, 2).map((cat: any) => (
+            <Badge key={cat.id} variant="secondary" className="text-xs">
+              {cat.name}
+            </Badge>
+          ))}
+          {categories.length > 2 && (
+            <Badge variant="outline" className="text-xs">
+              +{categories.length - 2} more
+            </Badge>
+          )}
+        </div>
+      );
     } else if (field === 'stock_status') {
       return (
         <Badge variant={value === 'instock' ? 'default' : value === 'outofstock' ? 'destructive' : 'secondary'}>
