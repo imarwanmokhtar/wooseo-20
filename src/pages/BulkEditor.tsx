@@ -218,18 +218,33 @@ const BulkEditor: React.FC = () => {
     }
   }, [user?.id, refreshCredits]);
 
-  // ALL useCallback hooks MUST be declared here, before any conditional returns
+  // FIXED transformProducts function to properly detect product types
   const transformProducts = useCallback((wooProducts: Product[]): BulkEditorProduct[] => {
     return wooProducts.map(product => {
-      // Determine product type based on available properties
-      let productType = 'simple';
-      if (product.variations && product.variations.length > 0) {
-        productType = 'variable';
-      } else if (product.virtual) {
-        productType = 'virtual';
-      } else if (product.downloadable) {
-        productType = 'downloadable';
+      // Improved product type detection based on WooCommerce API response
+      let productType = 'simple'; // Default to simple
+      
+      console.log('Processing product:', product.id, 'type field:', product.type, 'virtual:', product.virtual, 'downloadable:', product.downloadable);
+      
+      // Check if the product has a 'type' field directly from WooCommerce API
+      if (product.type) {
+        productType = product.type;
+      } else {
+        // Fallback logic for older API versions or missing type field
+        if (product.variations && product.variations.length > 0) {
+          productType = 'variable';
+        } else if (product.external_url && product.external_url.trim() !== '') {
+          productType = 'external';
+        } else if (product.grouped_products && product.grouped_products.length > 0) {
+          productType = 'grouped';
+        } else if (product.virtual) {
+          productType = 'virtual';
+        } else if (product.downloadable) {
+          productType = 'downloadable';
+        }
       }
+
+      console.log('Final product type for', product.id, ':', productType);
 
       return {
         id: product.id,

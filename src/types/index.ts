@@ -5,6 +5,7 @@ export interface Product {
   permalink: string;
   date_created: string;
   date_modified: string;
+  type?: string; // Add type field to Product interface
   status: string;
   featured: boolean;
   catalog_visibility: string;
